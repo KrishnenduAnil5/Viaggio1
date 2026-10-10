@@ -271,11 +271,16 @@ export const VisaJourneyPage: React.FC = () => {
                             isCompleted
                               ? 'bg-[#111111] text-white border-[#111111]'
                               : isCurrent
-                              ? 'bg-[#D8E6D5] text-[#111111] border-[#111111] ring-4 ring-[#D8E6D5]/40 font-bold'
+                              ? 'bg-[#D8E6D5] text-[#111111] border-[#111111] ring-4 ring-[#D8E6D5]/60 font-bold scale-105'
                               : 'bg-white text-[#77716B] border-[#EAE5DF]'
                           }`}>
                             {isCompleted ? (
                               <CheckCircle2 className="w-4 h-4" />
+                            ) : isCurrent ? (
+                              <span className="relative flex h-2.5 w-2.5">
+                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#111111] opacity-60"></span>
+                                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-[#111111]"></span>
+                              </span>
                             ) : (
                               <span className="text-[11px] font-mono">{step.step_order}</span>
                             )}

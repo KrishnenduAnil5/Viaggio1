@@ -38,3 +38,54 @@
 input, textarea, select {
   font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
 }
+
+/* 2D Travel Animations for Internal User Pages */
+@keyframes compassSway {
+  0%, 100% { transform: rotate(-8deg); }
+  50% { transform: rotate(12deg); }
+}
+
+@keyframes flightGlide {
+  0% { transform: translate(0, 0) rotate(0deg); }
+  50% { transform: translate(18px, -8px) rotate(3deg); }
+  100% { transform: translate(0, 0) rotate(0deg); }
+}
+
+@keyframes stampFloat {
+  0%, 100% { transform: translateY(0px) rotate(-3deg); }
+  50% { transform: translateY(-4px) rotate(-1deg); }
+}
+
+@keyframes dashFlow {
+  to {
+    stroke-dashoffset: -20;
+  }
+}
+
+.anim-compass-needle {
+  animation: compassSway 5s ease-in-out infinite;
+  transform-origin: center;
+}
+
+.anim-flight {
+  animation: flightGlide 4s ease-in-out infinite;
+}
+
+.anim-stamp {
+  animation: stampFloat 4.5s ease-in-out infinite;
+}
+
+.anim-dash-flow {
+  stroke-dasharray: 6 6;
+  animation: dashFlow 2.5s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .anim-compass-needle,
+  .anim-flight,
+  .anim-stamp,
+  .anim-dash-flow {
+    animation: none !important;
+  }
+}
+

@@ -1,14 +1,21 @@
 import React from 'react';
 import { useAuth } from '../../lib/authContext';
 import { LogOut, Compass, ShieldCheck } from 'lucide-react';
+import { TelegramIcon } from '../common/TelegramAssistantModal';
 
 interface NavbarProps {
   currentPath: string;
   onNavigate: (path: string) => void;
   onOpenSupabaseModal?: () => void;
+  onOpenTelegramModal?: () => void;
 }
 
-export const Navbar: React.FC<NavbarProps> = ({ currentPath, onNavigate, onOpenSupabaseModal }) => {
+export const Navbar: React.FC<NavbarProps> = ({ 
+  currentPath, 
+  onNavigate, 
+  onOpenSupabaseModal,
+  onOpenTelegramModal 
+}) => {
   const { user, isAdmin, logout } = useAuth();
 
   const handleLogout = async () => {
@@ -87,7 +94,19 @@ export const Navbar: React.FC<NavbarProps> = ({ currentPath, onNavigate, onOpenS
         </nav>
 
         {/* Zone 3: 1 Primary Action & Profile Info */}
-        <div className="flex items-center gap-3 shrink-0">
+        <div className="flex items-center gap-2.5 shrink-0">
+          {onOpenTelegramModal && (
+            <button
+              onClick={onOpenTelegramModal}
+              title="Telegram Auto-Assistant Bot (@ViaggioVisaBot)"
+              className="p-2 rounded-xl border border-[#EAE5DF] bg-white text-[#0088cc] hover:bg-[#0088cc]/10 hover:border-[#0088cc]/40 transition-colors cursor-pointer flex items-center gap-1.5 shadow-2xs group"
+              aria-label="Telegram Bot Auto-Assistant"
+            >
+              <TelegramIcon className="w-4 h-4 transition-transform group-hover:scale-110" />
+              <span className="hidden lg:inline text-xs font-semibold text-[#111111]">Bot Assistant</span>
+            </button>
+          )}
+
           {onOpenSupabaseModal && (
             <button
               onClick={onOpenSupabaseModal}

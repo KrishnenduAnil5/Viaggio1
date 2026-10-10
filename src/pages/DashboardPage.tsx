@@ -23,14 +23,18 @@ import {
   ArrowRight, 
   Plus, 
   ShieldCheck, 
-  FileCheck
+  FileCheck,
+  Sparkles
 } from 'lucide-react';
+import { TravelDashboardBanner } from '../components/illustrations/TravelDashboardBanner';
+import { TelegramIcon } from '../components/common/TelegramAssistantModal';
 
 interface DashboardPageProps {
   onNavigate: (path: string) => void;
+  onOpenTelegramModal?: () => void;
 }
 
-export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
+export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate, onOpenTelegramModal }) => {
   const { user } = useAuth();
   const [visas, setVisas] = useState<VisaReminder[]>([]);
   const [passports, setPassports] = useState<PassportDetail[]>([]);
@@ -136,6 +140,15 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
         <div className="absolute right-6 -bottom-6 opacity-5 pointer-events-none select-none hidden lg:block">
           <Compass className="w-72 h-72 text-[#111111]" strokeWidth={1} />
         </div>
+      </section>
+
+      {/* 2D Animated Route & Live Consular Mobility Radar */}
+      <section>
+        <TravelDashboardBanner
+          onOpenTelegram={() => onOpenTelegramModal && onOpenTelegramModal()}
+          activeDestination={upcomingVisa ? upcomingVisa.country : activeApplication ? activeApplication.country : 'International Transit'}
+          totalDaysRemaining={visaDaysRemaining}
+        />
       </section>
 
       {/* ====================================================================
@@ -475,6 +488,23 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
         </div>
 
       </section>
+
+      {/* Floating Telegram Assistant Trigger */}
+      {onOpenTelegramModal && (
+        <div className="fixed bottom-6 right-6 z-40">
+          <button
+            onClick={onOpenTelegramModal}
+            className="flex items-center gap-2.5 px-4 py-2.5 rounded-full bg-[#111111] text-white shadow-xl hover:bg-neutral-800 hover:scale-105 active:scale-95 transition-all cursor-pointer border border-white/20 group"
+            aria-label="Telegram Bot Auto-Assistant"
+          >
+            <div className="w-6 h-6 rounded-full bg-[#0088cc] flex items-center justify-center text-white">
+              <TelegramIcon className="w-3.5 h-3.5" />
+            </div>
+            <span className="text-xs font-semibold">Auto-Assistant Bot</span>
+            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+          </button>
+        </div>
+      )}
 
     </div>
   );

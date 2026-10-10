@@ -11,9 +11,9 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onNavigate }) => {
   const { login, signup, loading, error, clearError } = useAuth();
   
   const [isSignUp, setIsSignUp] = useState(false);
-  const [email, setEmail] = useState('akashsudheer678@gmail.com');
-  const [password, setPassword] = useState('pass1234');
-  const [fullName, setFullName] = useState('Akash Sudheer');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [fullName, setFullName] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(true);
   const [fieldErrors, setFieldErrors] = useState<{ email?: string; password?: string; fullName?: string }>({});
@@ -60,14 +60,6 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onNavigate }) => {
         }
       }
     }
-  };
-
-  const fillQuickCredentials = (userEmail: string, userPass: string, name?: string) => {
-    setEmail(userEmail);
-    setPassword(userPass);
-    if (name) setFullName(name);
-    setFieldErrors({});
-    clearError();
   };
 
   return (
@@ -274,32 +266,6 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onNavigate }) => {
                   )}
                 </button>
               </form>
-
-              {/* Dev Test Credentials quick picker */}
-              <div className="mt-8 pt-5 border-t border-[#EAE5DF]">
-                <div className="flex items-center gap-1.5 text-xs text-[#77716B] mb-2 font-medium">
-                  <Info className="w-3.5 h-3.5" />
-                  <span>Test Credentials (Quick Autofill):</span>
-                </div>
-                <div className="grid grid-cols-2 gap-2 text-xs">
-                  <button
-                    type="button"
-                    onClick={() => fillQuickCredentials('admin@gmail.com', 'admin123', 'Administrator')}
-                    className="p-2 rounded-lg border border-[#EAE5DF] bg-[#F7F1E9]/50 hover:bg-[#F7F1E9] text-left transition-colors cursor-pointer"
-                  >
-                    <span className="block font-semibold text-[#111111]">Admin Role</span>
-                    <span className="text-[11px] text-[#77716B] truncate block">admin@gmail.com</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => fillQuickCredentials('akashsudheer678@gmail.com', 'pass1234', 'Akash Sudheer')}
-                    className="p-2 rounded-lg border border-[#EAE5DF] bg-[#F7F1E9]/50 hover:bg-[#F7F1E9] text-left transition-colors cursor-pointer"
-                  >
-                    <span className="block font-semibold text-[#111111]">Traveler Role</span>
-                    <span className="text-[11px] text-[#77716B] truncate block">akashsudheer...</span>
-                  </button>
-                </div>
-              </div>
 
             </div>
           </div>

@@ -11,6 +11,7 @@ import { MyDocumentsPage } from './pages/MyDocumentsPage';
 import { AdminPage } from './pages/AdminPage';
 import { ForbiddenPage } from './pages/ForbiddenPage';
 import { SupabaseStatusModal } from './components/common/SupabaseStatusBadge';
+import { TelegramAssistantModal } from './components/common/TelegramAssistantModal';
 
 const AppContent: React.FC = () => {
   const { user, isAdmin, loading } = useAuth();
@@ -21,6 +22,7 @@ const AppContent: React.FC = () => {
   });
 
   const [isSupabaseModalOpen, setIsSupabaseModalOpen] = useState(false);
+  const [isTelegramModalOpen, setIsTelegramModalOpen] = useState(false);
 
   const navigate = (path: string) => {
     window.history.pushState({}, '', path);
@@ -93,7 +95,12 @@ const AppContent: React.FC = () => {
 
       case '/dashboard':
       default:
-        return <DashboardPage onNavigate={navigate} />;
+        return (
+          <DashboardPage 
+            onNavigate={navigate} 
+            onOpenTelegramModal={() => setIsTelegramModalOpen(true)}
+          />
+        );
     }
   };
 
@@ -103,6 +110,7 @@ const AppContent: React.FC = () => {
         currentPath={currentPath} 
         onNavigate={navigate}
         onOpenSupabaseModal={() => setIsSupabaseModalOpen(true)}
+        onOpenTelegramModal={() => setIsTelegramModalOpen(true)}
       />
 
       <main className="flex-1 pb-16">
@@ -114,6 +122,11 @@ const AppContent: React.FC = () => {
       <SupabaseStatusModal
         isOpen={isSupabaseModalOpen}
         onClose={() => setIsSupabaseModalOpen(false)}
+      />
+
+      <TelegramAssistantModal
+        isOpen={isTelegramModalOpen}
+        onClose={() => setIsTelegramModalOpen(false)}
       />
     </div>
   );
