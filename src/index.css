@@ -1,0 +1,40 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    --bg-warm: #F7F1E9;
+    --surface: #FFFFFF;
+    --text-primary: #111111;
+    --text-secondary: #77716B;
+    --border-subtle: #EAE5DF;
+    --accent-sage: #D8E6D5;
+    --soft-blue: #E5EDF4;
+    --warning-gold: #D99A43;
+    --error-coral: #C95C54;
+  }
+
+  body {
+    background-color: #F7F1E9;
+    color: #111111;
+    font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+  }
+
+  h1, h2, h3, .font-editorial {
+    font-family: 'Playfair Display', Georgia, serif;
+    letter-spacing: -0.02em;
+  }
+}
+
+/* Custom editorial styling */
+.font-display {
+  font-family: 'Playfair Display', Georgia, serif;
+}
+
+.tabular-numbers {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Smooth input styling */
+input, textarea, select {
+  font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+}

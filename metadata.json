@@ -1,0 +1,6 @@
+{
+  "name": "Viaggio",
+  "description": "Your journey, beautifully organized. Premium visa management, expiry reminders, journey tracking, and secure document vault.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
