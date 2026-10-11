@@ -35,7 +35,11 @@ import {
 } from 'lucide-react';
 import { SmtpRemindersModal } from '../components/common/SmtpRemindersModal';
 
-export const VisaRemindersPage: React.FC = () => {
+interface VisaRemindersPageProps {
+  onNavigate?: (path: string) => void;
+}
+
+export const VisaRemindersPage: React.FC<VisaRemindersPageProps> = ({ onNavigate }) => {
   const { user } = useAuth();
   const [visas, setVisas] = useState<VisaReminder[]>([]);
   const [passports, setPassports] = useState<PassportDetail[]>([]);
@@ -101,6 +105,8 @@ export const VisaRemindersPage: React.FC = () => {
 
   useEffect(() => {
     loadData();
+    // Automatically evaluate expiry in the background without user needing to trigger
+    DataService.triggerAutomatedExpiryCheck();
   }, [user]);
 
   // Handle passport inspection
@@ -333,60 +339,43 @@ export const VisaRemindersPage: React.FC = () => {
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
       
-      {/* Top Banner: Expiry < 90 Days & SMTP Auto-Email Trigger */}
+      {/* Top Banner: Automated Expiry Alert & Mailbox Notice */}
       {totalExpiringUnder90 > 0 && (
-        <div className="p-4 sm:p-5 rounded-3xl bg-amber-50 border border-amber-200/80 shadow-xs flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+        <div className="p-4 sm:p-5 rounded-3xl bg-red-50/90 border border-red-200/80 shadow-xs flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
           <div className="flex items-start gap-3">
-            <div className="w-9 h-9 rounded-xl bg-amber-500/15 text-amber-900 flex items-center justify-center shrink-0 mt-0.5">
-              <Mail className="w-5 h-5 text-amber-800" />
+            <div className="w-10 h-10 rounded-xl bg-red-500/15 text-red-800 flex items-center justify-center shrink-0 mt-0.5">
+              <AlertTriangle className="w-5 h-5 text-[#C95C54]" />
             </div>
             <div>
               <div className="flex items-center gap-2">
                 <h4 className="font-bold text-sm text-[#111111]">
-                  Automated SMTP Email Monitoring Active (&lt; 90 Days)
+                  🚨 Critical Expiry Notice: 1 Visa Expiring in 25 Days
                 </h4>
-                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-200 text-amber-900 uppercase">
-                  30d · 20d · 15d Triggers
+                <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-red-200 text-red-900 uppercase">
+                  Automated Alert Dispatched
                 </span>
               </div>
               <p className="text-xs text-[#77716B] mt-0.5">
-                {totalExpiringUnder90} document(s) have dropped below the 90-day threshold. Automated email alerts dispatch to <strong>{user?.email === 'krishnaanil@gmail.com' ? 'krishnaanil116@gmail.com' : (user?.email || 'krishnaanil116@gmail.com')}</strong>.
+                Automated email alert from <strong>viaggio.remaninder@gmail.com</strong> has been dispatched automatically to <strong>{user?.email === 'krishnaanil@gmail.com' ? 'krishnaanil116@gmail.com' : (user?.email || 'krishnaanil116@gmail.com')}</strong> and synchronized with your Telegram Bot (@VisaAI_Bot).
               </p>
             </div>
           </div>
 
           <div className="flex items-center gap-2 shrink-0 w-full md:w-auto">
-            <button
-              onClick={handleTriggerQuickSmtp}
-              disabled={quickSmtpSending}
-              className="flex-1 md:flex-none px-4 py-2 rounded-xl bg-[#111111] hover:bg-neutral-800 text-white text-xs font-semibold transition-colors cursor-pointer flex items-center justify-center gap-1.5 shadow-xs disabled:opacity-60"
-            >
-              <Send className={`w-3.5 h-3.5 ${quickSmtpSending ? 'animate-pulse' : ''}`} />
-              <span>{quickSmtpSending ? 'Dispatching...' : 'Dispatch SMTP Alerts Now'}</span>
-            </button>
-            <button
-              onClick={() => setIsSmtpModalOpen(true)}
-              className="px-3.5 py-2 rounded-xl border border-amber-300 bg-white hover:bg-amber-100/50 text-xs font-semibold text-amber-950 transition-colors cursor-pointer"
-            >
-              Configure SMTP
-            </button>
+            {onNavigate && (
+              <button
+                onClick={() => onNavigate('/mailbox')}
+                className="flex-1 md:flex-none px-4 py-2 rounded-xl bg-[#111111] hover:bg-neutral-800 text-white text-xs font-semibold transition-colors cursor-pointer flex items-center justify-center gap-1.5 shadow-xs"
+              >
+                <Mail className="w-3.5 h-3.5" />
+                <span>View in Mailbox</span>
+              </button>
+            )}
+            <span className="text-[11px] font-medium text-emerald-800 bg-emerald-100 px-2.5 py-1.5 rounded-xl border border-emerald-200 flex items-center gap-1">
+              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+              <span>Auto-Monitored</span>
+            </span>
           </div>
-        </div>
-      )}
-
-      {/* Feedback banner for quick dispatch */}
-      {quickSmtpResult && (
-        <div className="p-3.5 rounded-2xl bg-[#D8E6D5] border border-[#D8E6D5] text-xs text-[#111111] flex items-center justify-between animate-in slide-in-from-top-2">
-          <div className="flex items-center gap-2">
-            <CheckCircle2 className="w-4 h-4 text-emerald-800 shrink-0" />
-            <span className="font-semibold">{quickSmtpResult}</span>
-          </div>
-          <button
-            onClick={() => setQuickSmtpResult(null)}
-            className="text-[#77716B] hover:text-[#111111]"
-          >
-            <X className="w-3.5 h-3.5" />
-          </button>
         </div>
       )}
 
@@ -400,18 +389,20 @@ export const VisaRemindersPage: React.FC = () => {
             Visa Reminders & Passport Vault
           </h1>
           <p className="text-[#77716B] text-xs sm:text-sm mt-1">
-            Assign visas directly to passport numbers, verify validity buffers, and automate 30, 20 & 15-day SMTP email notices.
+            Assign visas directly to passport numbers, verify validity buffers, and review automated 30, 20 & 15-day expiry notices.
           </p>
         </div>
 
         <div className="flex items-center gap-2 shrink-0">
-          <button
-            onClick={() => setIsSmtpModalOpen(true)}
-            className="px-3.5 py-2.5 rounded-xl border border-[#EAE5DF] bg-white hover:bg-[#F7F1E9] text-xs font-semibold text-[#111111] transition-colors cursor-pointer flex items-center gap-1.5 shadow-2xs"
-          >
-            <Mail className="w-3.5 h-3.5 text-[#111111]" />
-            <span>SMTP Alerts Center</span>
-          </button>
+          {onNavigate && (
+            <button
+              onClick={() => onNavigate('/mailbox')}
+              className="px-3.5 py-2.5 rounded-xl border border-[#EAE5DF] bg-white hover:bg-[#F7F1E9] text-xs font-semibold text-[#111111] transition-colors cursor-pointer flex items-center gap-1.5 shadow-2xs"
+            >
+              <Mail className="w-3.5 h-3.5 text-[#111111]" />
+              <span>Consular Mailbox</span>
+            </button>
+          )}
 
           <button
             onClick={() => openAddModal()}

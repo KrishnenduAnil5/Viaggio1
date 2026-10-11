@@ -8,6 +8,7 @@ import { VisaRemindersPage } from './pages/VisaRemindersPage';
 import { PassportRemindersPage } from './pages/PassportRemindersPage';
 import { VisaJourneyPage } from './pages/VisaJourneyPage';
 import { MyDocumentsPage } from './pages/MyDocumentsPage';
+import { MailboxPage } from './pages/MailboxPage';
 import { AdminPage } from './pages/AdminPage';
 import { ForbiddenPage } from './pages/ForbiddenPage';
 import { SupabaseStatusModal } from './components/common/SupabaseStatusBadge';
@@ -94,6 +95,14 @@ const AppContent: React.FC = () => {
 
       case '/my-documents':
         return <MyDocumentsPage />;
+
+      case '/mailbox':
+        return (
+          <MailboxPage 
+            onNavigate={navigate} 
+            onOpenTelegramModal={() => setIsTelegramModalOpen(true)} 
+          />
+        );
 
       case '/dashboard':
       default:

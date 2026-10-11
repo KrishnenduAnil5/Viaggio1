@@ -193,22 +193,27 @@ export const TelegramAssistantModal: React.FC<TelegramAssistantModalProps> = ({ 
 
     // 1. /start
     if (clean === '/start' || clean === 'hello' || clean === 'hi' || clean === 'start') {
-      return `👋 <b>Hello Krishnendu!</b> Your bot connection is verified and active.\n\nTry sending commands:\n• <b>/passport</b> — Check passport validity\n• <b>/visas</b> — List active visas\n• <b>/reminders</b> — Check upcoming 30/20/15-day email alerts\n• <b>/check N8492015</b> — Inspect passport N8492015\n• <b>/status</b> — Complete dossier summary`;
+      return `🚨 <b>ALERT: 1 Visa Expiring in 25 Days (Japan Tourist eVisa)</b>\n\n👋 <b>Hello Krishnendu!</b> Your bot connection is verified and active.\n\nAutomated email notice dispatched from <code>viaggio.remaninder@gmail.com</code> to <code>krishnaanil116@gmail.com</code>.\n\nTry sending commands:\n• <b>/passport</b> — Check passport validity\n• <b>/visas</b> — List active visas & expiry status\n• <b>/reminders</b> — Check upcoming 30/20/15-day email alerts\n• <b>/mailbox</b> — View delivered emails in consular mailbox\n• <b>/check N8492015</b> — Inspect passport N8492015\n• <b>/status</b> — Complete dossier summary`;
+    }
+
+    // 1.1 /mailbox
+    if (clean === '/mailbox' || clean === 'mailbox' || clean.includes('mailbox') || clean.includes('inbox')) {
+      return `📬 <b>Consular Mailbox for krishnaanil116@gmail.com</b>\n\n🚨 <b>URGENT: Only 25 Days Remaining for Japan Visa (Passport: N8492015)</b>\n• <b>Sender:</b> <code>viaggio.remaninder@gmail.com</code>\n• <b>Recipient:</b> <code>krishnaanil116@gmail.com</code>\n• <b>Status:</b> ✅ Delivered to Mailbox (25-Day Milestone)\n• <b>Linked Passport:</b> <code>N8492015</code> (Valid ✅)\n• <b>Dossier Note:</b> Initiated by automatic 30/20/15-day expiry monitor.\n\n<i>This email is visible in your Viaggio Portal Mailbox!</i>`;
     }
 
     // 2. /passport
     if (clean === '/passport' || clean.includes('passport')) {
-      return `🛂 <b>Passport Status Dossier</b>\n\n• <b>Passport Number:</b> <code>N8492015</code> (India)\n• <b>Holder:</b> Krishnendu Anil (<code>krishnaanil@gmail.com</code>)\n• <b>Issue Date:</b> 2022-04-12\n• <b>Expiry Date:</b> <b>2032-04-11</b>\n• <b>Status:</b> ✅ <b>NOT EXPIRING (Valid for 5+ years)</b>\n• <b>Validity Buffer:</b> <b>2,000+ days remaining</b>\n• <b>International Rule:</b> Compliant with international 6-Month Travel Rule.`;
+      return `🛂 <b>Passport Status Dossier</b>\n\n• <b>Passport Number:</b> <code>N8492015</code> (India)\n• <b>Holder:</b> Krishnendu Anil (<code>krishnaanil@gmail.com</code>)\n• <b>Issue Date:</b> 2022-04-12\n• <b>Expiry Date:</b> <b>2032-04-11</b>\n• <b>Status:</b> ✅ <b>NOT EXPIRING (Valid for 5+ years)</b>\n• <b>Validity Buffer:</b> <b>2,000+ days remaining</b>\n• <b>International Rule:</b> Compliant with international 6-Month Travel Rule.\n\n🚨 <i>Note: Linked Japan Tourist eVisa requires renewal (25 days left). UK Visa valid until 2030.</i>`;
     }
 
     // 3. /visas
     if (clean === '/visas' || clean.includes('visa')) {
-      return `📜 <b>Active Visas Monitored</b>\n\n1. 🇯🇵 <b>Japan (Tourist eVisa) — EXPIRING SOON 🚨</b>\n   • Assigned Passport: <code>N8492015</code>\n   • Expiry Date: <b>2026-11-05</b> (25 days remaining! &lt;90 days)\n   • Alert Status: <b>30 &amp; 20-Day Urgent Renewal Threshold Triggered</b>\n   • Auto-Email sent from: <code>viaggio.remaninder@gmail.com</code>\n   • Recipient: <code>krishnaanil116@gmail.com</code>\n\n2. 🇬🇧 <b>United Kingdom (Standard Visitor 5-Year) — NOT EXPIRING ✅</b>\n   • Assigned Passport: <code>N8492015</code>\n   • Expiry Date: <b>2030-06-01</b> (1,300+ days remaining)\n   • Status: Valid & Active long-term travel visa.`;
+      return `📜 <b>Active Visas Monitored</b>\n\n1. 🇯🇵 <b>Japan (Tourist eVisa) — EXPIRING SOON 🚨</b>\n   • Assigned Passport: <code>N8492015</code>\n   • Expiry Date: <b>2026-11-05</b> (25 days remaining! &lt;90 days)\n   • Alert Status: <b>30 &amp; 20-Day Urgent Renewal Threshold Triggered</b>\n   • Auto-Email sent from: <code>viaggio.remaninder@gmail.com</code>\n   • Recipient: <code>krishnaanil116@gmail.com</code> (Delivered to Mailbox 📬)\n\n2. 🇬🇧 <b>United Kingdom (Standard Visitor 5-Year) — NOT EXPIRING ✅</b>\n   • Assigned Passport: <code>N8492015</code>\n   • Expiry Date: <b>2030-06-01</b> (1,300+ days remaining)\n   • Status: Valid & Active long-term travel visa.`;
     }
 
     // 4. /reminders
     if (clean === '/reminders' || clean.includes('reminder') || clean.includes('email') || clean.includes('smtp')) {
-      return `📅 <b>SMTP Email Expiry Alerts Schedule (&lt;90 Days)</b>\n\n• <b>Sender Address:</b> <code>viaggio.remaninder@gmail.com</code>\n• <b>Recipient:</b> <code>krishnaanil116@gmail.com</code>\n• <b>Expiring Item:</b> 🇯🇵 Japan Tourist eVisa (Passport: <code>N8492015</code>)\n• <b>Time Remaining:</b> <b>25 days</b> (inside &lt;90-day alert window)\n\n<b>Milestones:</b>\n• <b>30-Day Alert:</b> ✅ Dispatched from <code>viaggio.remaninder@gmail.com</code>\n• <b>20-Day Alert:</b> ⚡ Queued (dispatches at 20 days)\n• <b>15-Day Alert:</b> 🚨 Final urgent consular renewal notice\n\n💡 <i>Automated SMTP notifications are delivered directly to your inbox.</i>`;
+      return `📅 <b>SMTP Email Expiry Alerts Schedule (&lt;90 Days)</b>\n\n• <b>Sender Address:</b> <code>viaggio.remaninder@gmail.com</code>\n• <b>Recipient:</b> <code>krishnaanil116@gmail.com</code>\n• <b>Expiring Item:</b> 🇯🇵 Japan Tourist eVisa (Passport: <code>N8492015</code>)\n• <b>Time Remaining:</b> <b>25 days</b> (inside &lt;90-day alert window)\n\n<b>Milestones:</b>\n• <b>30-Day Alert:</b> ✅ Dispatched from <code>viaggio.remaninder@gmail.com</code>\n• <b>20-Day Alert:</b> ⚡ Queued (dispatches at 20 days)\n• <b>15-Day Alert:</b> 🚨 Final urgent consular renewal notice\n\n💡 <i>Automated SMTP notifications are delivered directly to your mailbox and visible in your portal.</i>`;
     }
 
     // 5. /check <passportNumber>
@@ -217,7 +222,7 @@ export const TelegramAssistantModal: React.FC<TelegramAssistantModalProps> = ({ 
       const passNum = parts.length > 1 ? parts[1].toUpperCase() : 'N8492015';
 
       if (passNum === 'N8492015') {
-        return `🔍 <b>Passport Inspection: ${passNum}</b>\n\n• <b>Issuing Country:</b> India\n• <b>Holder:</b> Krishnendu Anil (<code>krishnaanil@gmail.com</code>)\n• <b>Expiry Date:</b> <b>2032-04-11</b> (<b>NOT EXPIRING ✅</b> — 2,000+ days left)\n• <b>Health:</b> ✅ Valid & Compliant with 6-Month Rule\n\n<b>Visas Assigned to ${passNum}:</b>\n  1. 🇯🇵 <b>Japan Tourist eVisa:</b> Exp: 2026-11-05 (<b>25 days left 🚨 EXPIRING</b>)\n  2. 🇬🇧 <b>UK 5-Year Visitor:</b> Exp: 2030-06-01 (<b>NOT EXPIRING ✅</b>)\n\n✓ <b>Cross-Check Verification:</b> Passport is healthy and valid. Renewal required only for Japan visa.`;
+        return `🔍 <b>Passport Inspection: ${passNum}</b>\n\n• <b>Issuing Country:</b> India\n• <b>Holder:</b> Krishnendu Anil (<code>krishnaanil@gmail.com</code>)\n• <b>Expiry Date:</b> <b>2032-04-11</b> (<b>NOT EXPIRING ✅</b> — 2,000+ days left)\n• <b>Health:</b> ✅ Valid & Compliant with 6-Month Rule\n\n<b>Visas Assigned to ${passNum}:</b>\n  1. 🇯🇵 <b>Japan Tourist eVisa:</b> Exp: 2026-11-05 (<b>25 days left 🚨 EXPIRING</b> — Alert sent to Mailbox)\n  2. 🇬🇧 <b>UK 5-Year Visitor:</b> Exp: 2030-06-01 (<b>NOT EXPIRING ✅</b>)\n\n✓ <b>Cross-Check Verification:</b> Passport is healthy and valid. Renewal required only for Japan visa.`;
       } else {
         const checkRes = await DataService.checkPassportAndVisas(passNum, user?.id);
         if (!checkRes.passport) {
@@ -349,6 +354,14 @@ export const TelegramAssistantModal: React.FC<TelegramAssistantModalProps> = ({ 
           </div>
         </header>
 
+        {/* Active Expiry Notification Alert */}
+        <div className="bg-red-50 px-4 py-2 border-b border-red-200 flex items-center justify-between text-xs text-red-900 shrink-0">
+          <div className="flex items-center gap-1.5 font-medium">
+            <span className="w-2 h-2 rounded-full bg-[#C95C54] animate-pulse" />
+            <span>🚨 <b>Alert:</b> Japan Tourist eVisa expires in 25 days (Passport: N8492015). Email sent to krishnaanil116@gmail.com</span>
+          </div>
+        </div>
+
         {activeTab === 'chat' ? (
           <>
             {/* Chat Body */}
@@ -423,6 +436,13 @@ export const TelegramAssistantModal: React.FC<TelegramAssistantModalProps> = ({ 
                 className="px-2.5 py-1 rounded-full bg-[#F7F1E9] hover:bg-[#EAE5DF] text-[11px] font-semibold text-[#111111] transition-colors shrink-0 cursor-pointer"
               >
                 /reminders
+              </button>
+              <button
+                type="button"
+                onClick={() => handleSendCommand('/mailbox')}
+                className="px-2.5 py-1 rounded-full bg-amber-100 hover:bg-amber-200 text-[11px] font-semibold text-amber-900 transition-colors shrink-0 cursor-pointer"
+              >
+                📬 /mailbox
               </button>
               <button
                 type="button"

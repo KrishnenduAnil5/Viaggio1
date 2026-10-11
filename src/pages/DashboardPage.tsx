@@ -24,7 +24,8 @@ import {
   Plus, 
   ShieldCheck, 
   FileCheck,
-  Sparkles
+  Sparkles,
+  Mail
 } from 'lucide-react';
 import { TravelDashboardBanner } from '../components/illustrations/TravelDashboardBanner';
 import { TelegramIcon } from '../components/common/TelegramAssistantModal';
@@ -95,8 +96,48 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate, onOpen
   }
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-10">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
       
+      {/* Active Expiry Notification & Automated Mailbox Alert */}
+      {visaDaysRemaining !== null && visaDaysRemaining <= 30 && (
+        <section className="p-5 rounded-3xl bg-red-50/90 border border-red-200 shadow-xs flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+          <div className="flex items-start gap-3.5">
+            <div className="w-10 h-10 rounded-2xl bg-[#C95C54]/15 text-[#C95C54] flex items-center justify-center shrink-0 mt-0.5">
+              <AlertTriangle className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h3 className="font-bold text-sm text-[#111111]">
+                  🚨 Critical Expiry Notification: {upcomingVisa?.country} ({upcomingVisa?.visa_type})
+                </h3>
+                <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-red-200 text-red-900 uppercase">
+                  {visaDaysRemaining} Days Remaining
+                </span>
+              </div>
+              <p className="text-xs text-[#77716B] mt-1">
+                Your visa linked to Passport <strong>{upcomingVisa?.passport_number || 'N8492015'}</strong> has triggered the automated 30/20/15-day renewal rule. An automated email was sent from <strong>viaggio.remaninder@gmail.com</strong> to <strong>krishnaanil116@gmail.com</strong>, and real-time alert sent to Telegram (@VisaAI_Bot).
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2.5 shrink-0 w-full md:w-auto">
+            <button
+              onClick={() => onNavigate('/mailbox')}
+              className="flex-1 md:flex-none px-4 py-2.5 rounded-xl bg-[#111111] hover:bg-neutral-800 text-white text-xs font-semibold transition-colors cursor-pointer flex items-center justify-center gap-1.5 shadow-xs"
+            >
+              <Mail className="w-3.5 h-3.5" />
+              <span>View in Mailbox</span>
+            </button>
+            <button
+              onClick={() => onNavigate('/visa-reminders')}
+              className="flex-1 md:flex-none px-3.5 py-2.5 rounded-xl border border-[#EAE5DF] bg-white hover:bg-[#F7F1E9] text-xs font-semibold text-[#111111] transition-colors cursor-pointer flex items-center justify-center gap-1.5"
+            >
+              <span>Inspect Dossier</span>
+            </button>
+          </div>
+        </section>
+      )}
+
       {/* Editorial Header */}
       <section className="bg-white rounded-3xl border border-[#EAE5DF] p-8 sm:p-10 shadow-xs relative overflow-hidden">
         <div className="max-w-2xl relative z-10">

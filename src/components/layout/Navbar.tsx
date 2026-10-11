@@ -29,6 +29,7 @@ export const Navbar: React.FC<NavbarProps> = ({
     { label: 'Dashboard', path: '/dashboard' },
     { label: 'Visa Reminders', path: '/visa-reminders' },
     { label: 'Passport', path: '/passport-reminders' },
+    { label: 'Mailbox', path: '/mailbox' },
     { label: 'Visa Journey', path: '/visa-journey' },
     { label: 'Documents', path: '/my-documents' },
   ];
@@ -97,17 +98,22 @@ export const Navbar: React.FC<NavbarProps> = ({
 
         {/* Zone 3: 1 Primary Action & Profile Info */}
         <div className="flex items-center gap-2.5 shrink-0">
-          {onOpenSmtpModal && (
-            <button
-              onClick={onOpenSmtpModal}
-              title="Automated 30/20/15-Day SMTP Email Alerts"
-              className="p-2 rounded-xl border border-[#EAE5DF] bg-white text-[#111111] hover:bg-[#F7F1E9] transition-colors cursor-pointer flex items-center gap-1.5 shadow-2xs group"
-              aria-label="SMTP Expiry Reminders"
-            >
-              <Mail className="w-4 h-4 text-[#111111] transition-transform group-hover:scale-110" />
-              <span className="hidden lg:inline text-xs font-semibold text-[#111111]">SMTP Alerts</span>
-            </button>
-          )}
+          <button
+            onClick={() => onNavigate('/mailbox')}
+            title="Consular Mailbox (krishnaanil116@gmail.com)"
+            className={`p-2 rounded-xl border transition-colors cursor-pointer flex items-center gap-1.5 shadow-2xs group ${
+              currentPath === '/mailbox'
+                ? 'bg-[#111111] text-white border-[#111111]'
+                : 'border-[#EAE5DF] bg-white text-[#111111] hover:bg-[#F7F1E9]'
+            }`}
+            aria-label="Consular Mailbox"
+          >
+            <div className="relative">
+              <Mail className="w-4 h-4 transition-transform group-hover:scale-110" />
+              <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-[#C95C54]" />
+            </div>
+            <span className="hidden lg:inline text-xs font-semibold">Mailbox</span>
+          </button>
 
           {onOpenTelegramModal && (
             <button

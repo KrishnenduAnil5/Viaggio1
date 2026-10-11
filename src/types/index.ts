@@ -153,6 +153,23 @@ export interface EmailReminderLog {
   errorMessage?: string;
 }
 
+export interface MailboxMessage {
+  id: string;
+  fromName: string;
+  fromEmail: string;
+  to: string;
+  subject: string;
+  html: string;
+  sentAt: string;
+  status: 'delivered' | 'sent';
+  previewUrl?: string;
+  itemType: 'visa' | 'passport';
+  itemTitle: string;
+  passportNumber?: string;
+  daysRemaining: number;
+  read: boolean;
+}
+
 export interface PassportCheckResult {
   passportNumber: string;
   passport: PassportDetail | null;

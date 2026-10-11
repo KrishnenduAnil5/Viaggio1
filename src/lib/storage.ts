@@ -10,7 +10,8 @@ import {
   VisaStatus,
   SmtpConfig,
   EmailReminderLog,
-  PassportCheckResult
+  PassportCheckResult,
+  MailboxMessage
 } from '../types';
 import { supabase, isSupabaseConfigured } from './supabase';
 
@@ -1437,6 +1438,42 @@ export const DataService = {
         logs: [],
         message: err.message || 'Server communication failed.',
       };
+    }
+  },
+
+  // Consular Mailbox Service
+  async getMailboxMessages(): Promise<MailboxMessage[]> {
+    try {
+      const response = await fetch('/api/mailbox');
+      const data = await response.json();
+      if (data.success && Array.isArray(data.messages)) {
+        return data.messages;
+      }
+    } catch (e) {
+      console.warn('Mailbox fetch failed, falling back to local store:', e);
+    }
+    return getLocalStore<MailboxMessage[]>('mailbox_messages', []);
+  },
+
+  async markMailboxRead(id?: string): Promise<void> {
+    try {
+      await fetch('/api/mailbox/mark-read', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id }),
+      });
+    } catch (e) {
+      console.warn('Mailbox mark-read failed:', e);
+    }
+  },
+
+  async triggerAutomatedExpiryCheck(): Promise<boolean> {
+    try {
+      const res = await fetch('/api/mailbox/trigger-auto', { method: 'POST' });
+      const data = await res.json();
+      return Boolean(data.success);
+    } catch (e) {
+      return false;
     }
   },
 
