@@ -15,11 +15,12 @@ export type VisaStatus = 'valid' | 'expiring_soon' | 'renewal_required' | 'expir
 export interface VisaReminder {
   id: string;
   user_id: string;
+  passport_number?: string;
   country: string;
   visa_type: string;
   issue_date: string;
   expiry_date: string;
-  reminder_intervals: number[]; // e.g. [90, 60, 30]
+  reminder_intervals: number[]; // e.g. [90, 60, 30, 20, 15]
   status: VisaStatus;
   notes?: string;
   created_at: string;
@@ -123,4 +124,40 @@ export interface UrgentCaseItem {
   reason: string;
   target_date?: string;
   days_remaining?: number;
+}
+
+export interface SmtpConfig {
+  host: string;
+  port: number;
+  secure: boolean;
+  user: string;
+  pass: string;
+  fromName: string;
+  fromEmail: string;
+  enabled: boolean;
+  useTestMode: boolean; // Ethereal / simulated test mode with real preview
+}
+
+export interface EmailReminderLog {
+  id: string;
+  timestamp: string;
+  recipient: string;
+  subject: string;
+  itemType: 'visa' | 'passport';
+  itemTitle: string;
+  passportNumber?: string;
+  daysRemaining: number;
+  threshold: number; // 30, 20, 15
+  status: 'sent' | 'failed';
+  previewUrl?: string;
+  errorMessage?: string;
+}
+
+export interface PassportCheckResult {
+  passportNumber: string;
+  passport: PassportDetail | null;
+  passportDaysRemaining: number | null;
+  passportStatus: 'valid' | 'expiring_soon' | 'urgent' | 'expired' | 'not_found';
+  assignedVisas: VisaReminder[];
+  warnings: string[];
 }

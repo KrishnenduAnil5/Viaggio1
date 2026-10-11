@@ -267,6 +267,57 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onNavigate }) => {
                 </button>
               </form>
 
+              {/* Quick 1-Click Demo Profiles */}
+              <div className="mt-6 pt-5 border-t border-[#EAE5DF]">
+                <p className="text-[11px] font-semibold text-[#77716B] uppercase tracking-wider mb-2.5">
+                  Quick Demo Credentials
+                </p>
+                <div className="space-y-1.5">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEmail('krishnaanil@gmail.com');
+                      setPassword('password123');
+                    }}
+                    className="w-full py-2 px-3 rounded-xl border border-[#D8E6D5] bg-[#D8E6D5]/30 hover:bg-[#D8E6D5]/60 text-xs text-[#111111] flex items-center justify-between transition-colors cursor-pointer text-left"
+                  >
+                    <div>
+                      <span className="font-bold">Krishnendu Anil</span>
+                      <span className="text-[10px] text-[#77716B] block">krishnaanil@gmail.com · Expiring Visa &amp; Alerts</span>
+                    </div>
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#111111] text-white">Fill</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEmail('admin@gmail.com');
+                      setPassword('admin123');
+                    }}
+                    className="w-full py-2 px-3 rounded-xl border border-[#EAE5DF] bg-[#F7F1E9]/50 hover:bg-[#F7F1E9] text-xs text-[#111111] flex items-center justify-between transition-colors cursor-pointer text-left"
+                  >
+                    <div>
+                      <span className="font-bold">Administrator</span>
+                      <span className="text-[10px] text-[#77716B] block">admin@gmail.com · Consular Portal</span>
+                    </div>
+                    <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-neutral-200 text-neutral-800">Fill</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEmail('akashsudheer678@gmail.com');
+                      setPassword('traveler123');
+                    }}
+                    className="w-full py-2 px-3 rounded-xl border border-[#EAE5DF] bg-[#F7F1E9]/50 hover:bg-[#F7F1E9] text-xs text-[#111111] flex items-center justify-between transition-colors cursor-pointer text-left"
+                  >
+                    <div>
+                      <span className="font-bold">Akash Sudheer</span>
+                      <span className="text-[10px] text-[#77716B] block">akashsudheer678@gmail.com</span>
+                    </div>
+                    <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-neutral-200 text-neutral-800">Fill</span>
+                  </button>
+                </div>
+              </div>
+
             </div>
           </div>
 

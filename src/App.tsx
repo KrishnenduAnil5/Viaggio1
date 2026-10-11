@@ -12,6 +12,7 @@ import { AdminPage } from './pages/AdminPage';
 import { ForbiddenPage } from './pages/ForbiddenPage';
 import { SupabaseStatusModal } from './components/common/SupabaseStatusBadge';
 import { TelegramAssistantModal } from './components/common/TelegramAssistantModal';
+import { SmtpRemindersModal } from './components/common/SmtpRemindersModal';
 
 const AppContent: React.FC = () => {
   const { user, isAdmin, loading } = useAuth();
@@ -23,6 +24,7 @@ const AppContent: React.FC = () => {
 
   const [isSupabaseModalOpen, setIsSupabaseModalOpen] = useState(false);
   const [isTelegramModalOpen, setIsTelegramModalOpen] = useState(false);
+  const [isSmtpModalOpen, setIsSmtpModalOpen] = useState(false);
 
   const navigate = (path: string) => {
     window.history.pushState({}, '', path);
@@ -111,6 +113,7 @@ const AppContent: React.FC = () => {
         onNavigate={navigate}
         onOpenSupabaseModal={() => setIsSupabaseModalOpen(true)}
         onOpenTelegramModal={() => setIsTelegramModalOpen(true)}
+        onOpenSmtpModal={() => setIsSmtpModalOpen(true)}
       />
 
       <main className="flex-1 pb-16">
@@ -127,6 +130,11 @@ const AppContent: React.FC = () => {
       <TelegramAssistantModal
         isOpen={isTelegramModalOpen}
         onClose={() => setIsTelegramModalOpen(false)}
+      />
+
+      <SmtpRemindersModal
+        isOpen={isSmtpModalOpen}
+        onClose={() => setIsSmtpModalOpen(false)}
       />
     </div>
   );

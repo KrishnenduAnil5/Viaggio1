@@ -7,7 +7,10 @@ import {
   ApplicationUpdate, 
   UserDocument, 
   UrgentCaseItem,
-  VisaStatus
+  VisaStatus,
+  SmtpConfig,
+  EmailReminderLog,
+  PassportCheckResult
 } from '../types';
 import { supabase, isSupabaseConfigured } from './supabase';
 
@@ -64,6 +67,13 @@ function setLocalStore<T>(key: string, val: T): void {
 // Default seed records for instant demo and evaluation
 const DEFAULT_PROFILES: UserProfile[] = [
   {
+    id: 'user-krishna-1',
+    email: 'krishnaanil@gmail.com',
+    full_name: 'Krishnendu Anil',
+    role: 'user',
+    created_at: '2026-01-01T10:00:00Z',
+  },
+  {
     id: 'user-admin-1',
     email: 'admin@gmail.com',
     full_name: 'Administrator',
@@ -88,13 +98,40 @@ const DEFAULT_PROFILES: UserProfile[] = [
 
 const DEFAULT_VISAS: VisaReminder[] = [
   {
+    id: 'visa-krishna-expiring',
+    user_id: 'user-krishna-1',
+    passport_number: 'N8492015',
+    country: 'Japan',
+    visa_type: 'Tourist eVisa (Single Entry)',
+    issue_date: '2026-05-05',
+    expiry_date: '2026-11-05', // ~25 days from now - EXPIRING SOON (<90 days, 30/20/15-day alerts active!)
+    reminder_intervals: [90, 60, 30, 20, 15],
+    status: 'renewal_required',
+    notes: 'Expiring in 25 days. Automated email alert dispatched from viaggio.remaninder@gmail.com to krishnaanil116@gmail.com.',
+    created_at: '2026-05-05T10:00:00Z',
+  },
+  {
+    id: 'visa-krishna-valid',
+    user_id: 'user-krishna-1',
+    passport_number: 'N8492015',
+    country: 'United Kingdom',
+    visa_type: 'Standard Visitor Visa (5 Years)',
+    issue_date: '2025-06-01',
+    expiry_date: '2030-06-01', // ~1,300+ days from now - NOT EXPIRING!
+    reminder_intervals: [90, 60, 30, 20, 15],
+    status: 'valid',
+    notes: 'Long-term multiple-entry visitor visa. Fully valid (NOT expiring).',
+    created_at: '2025-06-01T10:00:00Z',
+  },
+  {
     id: 'visa-1',
     user_id: 'user-traveler-1',
+    passport_number: 'N8492015',
     country: 'Japan',
     visa_type: 'Tourist (Single Entry)',
     issue_date: '2026-05-10',
-    expiry_date: '2026-11-10', // ~30 days from now
-    reminder_intervals: [90, 60, 30],
+    expiry_date: '2026-11-10', // ~30 days from now - triggers 30-day email alert!
+    reminder_intervals: [90, 60, 30, 20, 15],
     status: 'renewal_required',
     notes: 'Requires confirmed return flight ticket upon renewal.',
     created_at: '2026-05-10T12:00:00Z',
@@ -102,11 +139,12 @@ const DEFAULT_VISAS: VisaReminder[] = [
   {
     id: 'visa-2',
     user_id: 'user-traveler-1',
+    passport_number: 'N8492015',
     country: 'United Kingdom',
     visa_type: 'Standard Visitor Visa (6 Months)',
     issue_date: '2026-07-01',
     expiry_date: '2027-01-01',
-    reminder_intervals: [90, 60, 30],
+    reminder_intervals: [90, 60, 30, 20, 15],
     status: 'valid',
     notes: 'Biometrics were taken at VFS Global center.',
     created_at: '2026-07-01T08:00:00Z',
@@ -114,11 +152,12 @@ const DEFAULT_VISAS: VisaReminder[] = [
   {
     id: 'visa-3',
     user_id: 'user-traveler-2',
+    passport_number: 'GB9821447',
     country: 'Schengen (France)',
     visa_type: 'Short Stay Type C',
     issue_date: '2026-03-10',
     expiry_date: '2026-09-10',
-    reminder_intervals: [60, 30],
+    reminder_intervals: [60, 30, 20, 15],
     status: 'expired',
     notes: 'Expired Schengen tourist visa.',
     created_at: '2026-03-10T10:00:00Z',
@@ -126,6 +165,17 @@ const DEFAULT_VISAS: VisaReminder[] = [
 ];
 
 const DEFAULT_PASSPORTS: PassportDetail[] = [
+  {
+    id: 'pass-krishna-1',
+    user_id: 'user-krishna-1',
+    issuing_country: 'India',
+    passport_number: 'N8492015',
+    issue_date: '2022-04-12',
+    expiry_date: '2032-04-11', // Valid for ~5.5 years (2,000+ days) - NOT EXPIRING!
+    reminder_intervals: [180, 90, 30],
+    notes: '36 pages regular booklet. Complies with international 6-month validity rule (NOT expiring).',
+    created_at: '2022-04-12T10:00:00Z',
+  },
   {
     id: 'pass-1',
     user_id: 'user-traveler-1',
@@ -365,15 +415,33 @@ const DEFAULT_DOCUMENTS: UserDocument[] = [
 
 // Initialize local store if not present
 function initializeLocalStoreIfNeeded() {
-  if (!localStorage.getItem(STORAGE_KEY_PREFIX + 'profiles')) {
-    setLocalStore('profiles', DEFAULT_PROFILES);
-  }
-  if (!localStorage.getItem(STORAGE_KEY_PREFIX + 'visas')) {
-    setLocalStore('visas', DEFAULT_VISAS);
-  }
-  if (!localStorage.getItem(STORAGE_KEY_PREFIX + 'passports')) {
-    setLocalStore('passports', DEFAULT_PASSPORTS);
-  }
+  const existingProfiles = getLocalStore<UserProfile[]>('profiles', []);
+  const mergedProfiles = [...existingProfiles];
+  DEFAULT_PROFILES.forEach(dp => {
+    if (!mergedProfiles.some(p => p.email.toLowerCase() === dp.email.toLowerCase())) {
+      mergedProfiles.push(dp);
+    }
+  });
+  setLocalStore('profiles', mergedProfiles);
+
+  const existingVisas = getLocalStore<VisaReminder[]>('visas', []);
+  const mergedVisas = [...existingVisas];
+  DEFAULT_VISAS.forEach(dv => {
+    if (!mergedVisas.some(v => v.id === dv.id)) {
+      mergedVisas.push(dv);
+    }
+  });
+  setLocalStore('visas', mergedVisas);
+
+  const existingPassports = getLocalStore<PassportDetail[]>('passports', []);
+  const mergedPassports = [...existingPassports];
+  DEFAULT_PASSPORTS.forEach(dp => {
+    if (!mergedPassports.some(p => p.id === dp.id)) {
+      mergedPassports.push(dp);
+    }
+  });
+  setLocalStore('passports', mergedPassports);
+
   if (!localStorage.getItem(STORAGE_KEY_PREFIX + 'applications')) {
     setLocalStore('applications', DEFAULT_APPLICATIONS);
   }
@@ -1112,5 +1180,325 @@ export const DataService = {
       missingDocumentsCount: missingDocsCount,
       delayedApplicationsCount: delayedApps.length,
     };
+  },
+
+  // -------------------------------------------------------------
+  // PASSPORT & ASSIGNED VISAS CROSS-CHECK ENGINE
+  // -------------------------------------------------------------
+  async getVisasByPassport(passportNumber: string, userId?: string): Promise<VisaReminder[]> {
+    if (!passportNumber) return [];
+    initializeLocalStoreIfNeeded();
+    const cleanNum = passportNumber.trim().toLowerCase();
+    
+    let allVisas: VisaReminder[] = [];
+    if (userId) {
+      allVisas = await this.getVisaReminders(userId);
+    } else {
+      allVisas = await this.adminGetAllVisas();
+    }
+
+    return allVisas.filter(v => (v.passport_number || '').trim().toLowerCase() === cleanNum);
+  },
+
+  async checkPassportAndVisas(passportNumber: string, userId?: string): Promise<PassportCheckResult> {
+    const cleanNum = (passportNumber || '').trim();
+    if (!cleanNum) {
+      return {
+        passportNumber: '',
+        passport: null,
+        passportDaysRemaining: null,
+        passportStatus: 'not_found',
+        assignedVisas: [],
+        warnings: ['Please enter a passport number to begin verification.'],
+      };
+    }
+
+    initializeLocalStoreIfNeeded();
+    
+    // Look up passport across user's passports or all passports
+    const allPassports = userId 
+      ? await this.getPassportDetails(userId) 
+      : await this.adminGetAllPassports();
+
+    const matchedPassport = allPassports.find(
+      p => p.passport_number.trim().toLowerCase() === cleanNum.toLowerCase()
+    ) || null;
+
+    // Look up assigned visas
+    const assignedVisas = await this.getVisasByPassport(cleanNum, userId);
+
+    const warnings: string[] = [];
+    let passportDays: number | null = null;
+    let passportStatus: PassportCheckResult['passportStatus'] = 'not_found';
+
+    if (matchedPassport) {
+      passportDays = calculateDaysRemaining(matchedPassport.expiry_date);
+      
+      if (passportDays < 0) {
+        passportStatus = 'expired';
+        warnings.push(`Passport expired ${Math.abs(passportDays)} days ago. All attached visas cannot be presented for international travel.`);
+      } else if (passportDays <= 45) {
+        passportStatus = 'urgent';
+        warnings.push(`CRITICAL: Passport expires in only ${passportDays} days! International travel strictly prohibited.`);
+      } else if (passportDays <= 90) {
+        passportStatus = 'expiring_soon';
+        warnings.push(`Passport expires in ${passportDays} days (<90-day threshold). Immediate consular renewal advised.`);
+      } else if (passportDays <= 180) {
+        passportStatus = 'valid';
+        warnings.push(`Warning: Passport expires in ${passportDays} days. Breaches the mandatory 6-month validity threshold for many international destinations.`);
+      } else {
+        passportStatus = 'valid';
+      }
+
+      // Cross-check each assigned visa against passport validity
+      assignedVisas.forEach(visa => {
+        const visaDays = calculateDaysRemaining(visa.expiry_date);
+        if (new Date(visa.expiry_date) > new Date(matchedPassport.expiry_date)) {
+          warnings.push(
+            `Embassy Validity Conflict: ${visa.country} visa expires on ${visa.expiry_date}, which is AFTER passport expiry date (${matchedPassport.expiry_date}). Visas cannot remain valid past passport expiration.`
+          );
+        }
+        if (visaDays <= 30 && visaDays >= 0) {
+          warnings.push(`${visa.country} visa requires urgent renewal (${visaDays} days remaining).`);
+        }
+      });
+    } else {
+      passportStatus = 'not_found';
+      warnings.push(`Passport number "${cleanNum}" is not yet registered in your vault. You can assign visas or record it now.`);
+    }
+
+    return {
+      passportNumber: cleanNum,
+      passport: matchedPassport,
+      passportDaysRemaining: passportDays,
+      passportStatus,
+      assignedVisas,
+      warnings,
+    };
+  },
+
+  // -------------------------------------------------------------
+  // AUTOMATED REMINDERS (<90 DAYS: 30, 20, 15 DAYS AUTO-EMAIL)
+  // -------------------------------------------------------------
+  async getExpiringItemsUnder90Days(userId?: string) {
+    initializeLocalStoreIfNeeded();
+    const visas = userId ? await this.getVisaReminders(userId) : await this.adminGetAllVisas();
+    const passports = userId ? await this.getPassportDetails(userId) : await this.adminGetAllPassports();
+
+    const items: Array<{
+      id: string;
+      itemType: 'visa' | 'passport';
+      title: string;
+      country?: string;
+      passportNumber?: string;
+      issueDate: string;
+      expiryDate: string;
+      targetDate: string;
+      daysRemaining: number;
+      status: string;
+      triggerTier: 30 | 20 | 15 | 60 | 0;
+      isUrgent: boolean;
+      notes?: string;
+    }> = [];
+
+    // Check visas < 90 days
+    visas.forEach(v => {
+      const days = calculateDaysRemaining(v.expiry_date);
+      if (days <= 90) {
+        let triggerTier: 30 | 20 | 15 | 60 | 0 = 60;
+        if (days <= 0) triggerTier = 0;
+        else if (days <= 15) triggerTier = 15;
+        else if (days <= 20) triggerTier = 20;
+        else if (days <= 30) triggerTier = 30;
+
+        items.push({
+          id: `visa-${v.id}`,
+          itemType: 'visa',
+          title: `${v.country} (${v.visa_type})`,
+          country: v.country,
+          passportNumber: v.passport_number,
+          issueDate: v.issue_date,
+          expiryDate: v.expiry_date,
+          targetDate: v.expiry_date,
+          daysRemaining: days,
+          status: v.status,
+          triggerTier,
+          isUrgent: days <= 20,
+          notes: v.notes,
+        });
+      }
+    });
+
+    // Check passports < 90 days
+    passports.forEach(p => {
+      const days = calculateDaysRemaining(p.expiry_date);
+      if (days <= 90) {
+        let triggerTier: 30 | 20 | 15 | 60 | 0 = 60;
+        if (days <= 0) triggerTier = 0;
+        else if (days <= 15) triggerTier = 15;
+        else if (days <= 20) triggerTier = 20;
+        else if (days <= 30) triggerTier = 30;
+
+        items.push({
+          id: `passport-${p.id}`,
+          itemType: 'passport',
+          title: `${p.issuing_country} Passport (${p.passport_number})`,
+          country: p.issuing_country,
+          passportNumber: p.passport_number,
+          issueDate: p.issue_date,
+          expiryDate: p.expiry_date,
+          targetDate: p.expiry_date,
+          daysRemaining: days,
+          status: days < 0 ? 'expired' : days <= 30 ? 'renewal_required' : 'expiring_soon',
+          triggerTier,
+          isUrgent: days <= 20,
+          notes: p.notes,
+        });
+      }
+    });
+
+    return items.sort((a, b) => a.daysRemaining - b.daysRemaining);
+  },
+
+  // SMTP Settings & Dispatcher
+  getSmtpConfig(): SmtpConfig {
+    const defaultConf: SmtpConfig = {
+      host: 'smtp.ethereal.email',
+      port: 587,
+      secure: false,
+      user: '',
+      pass: '',
+      fromName: 'Viaggio Expiry Guardian',
+      fromEmail: 'viaggio.remaninder@gmail.com',
+      enabled: true,
+      useTestMode: true,
+    };
+    return getLocalStore<SmtpConfig>('smtp_config', defaultConf);
+  },
+
+  saveSmtpConfig(config: SmtpConfig): void {
+    setLocalStore('smtp_config', config);
+  },
+
+  getSmtpLogs(): EmailReminderLog[] {
+    return getLocalStore<EmailReminderLog[]>('smtp_logs', []);
+  },
+
+  addSmtpLog(log: EmailReminderLog): void {
+    const logs = this.getSmtpLogs();
+    logs.unshift(log);
+    setLocalStore('smtp_logs', logs.slice(0, 50)); // keep last 50
+  },
+
+  async triggerSmtpReminders(
+    recipientEmail: string,
+    userId?: string,
+    customConfig?: SmtpConfig
+  ): Promise<{ success: boolean; dispatchedCount: number; logs: EmailReminderLog[]; message?: string }> {
+    const items = await this.getExpiringItemsUnder90Days(userId);
+    const config = customConfig || this.getSmtpConfig();
+
+    if (items.length === 0) {
+      return {
+        success: true,
+        dispatchedCount: 0,
+        logs: [],
+        message: 'All passports and visas are currently outside the <90 day alert window.',
+      };
+    }
+
+    try {
+      const response = await fetch('/api/smtp/check-and-send-reminders', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          items,
+          recipientEmail: recipientEmail || 'krishnaanil116@gmail.com',
+          config,
+        }),
+      });
+
+      const data = await response.json();
+      if (data.success && Array.isArray(data.logs)) {
+        data.logs.forEach((l: EmailReminderLog) => this.addSmtpLog(l));
+      }
+
+      return {
+        success: data.success,
+        dispatchedCount: data.dispatchedCount || 0,
+        logs: data.logs || [],
+        message: data.message,
+      };
+    } catch (err: any) {
+      console.error('Failed to dispatch reminders via server API', err);
+      return {
+        success: false,
+        dispatchedCount: 0,
+        logs: [],
+        message: err.message || 'Server communication failed.',
+      };
+    }
+  },
+
+  // -------------------------------------------------------------
+  // SUPABASE SEEDING & DATA SYNC (LIVE BACKEND SYNCHRONIZATION)
+  // -------------------------------------------------------------
+  async syncAllDataToSupabase(): Promise<{ success: boolean; count: number; error?: string }> {
+    if (!isSupabaseConfigured) {
+      return { success: false, count: 0, error: 'Supabase is not configured yet. Please configure URL and Anon Key.' };
+    }
+
+    initializeLocalStoreIfNeeded();
+    let count = 0;
+
+    try {
+      // 1. Sync Profiles
+      const profiles = getLocalStore<UserProfile[]>('profiles', DEFAULT_PROFILES);
+      for (const p of profiles) {
+        // Upsert into profiles
+        const { error } = await supabase.from('profiles').upsert({
+          id: p.id.startsWith('user-') ? '00000000-0000-0000-0000-00000000000' + p.id.replace('user-', '') : p.id,
+          email: p.email,
+          full_name: p.full_name,
+          role: p.role,
+        }, { onConflict: 'email' });
+        if (!error) count++;
+      }
+
+      // 2. Sync Passports
+      const passports = getLocalStore<PassportDetail[]>('passports', DEFAULT_PASSPORTS);
+      for (const pass of passports) {
+        await supabase.from('passport_details').upsert({
+          user_id: pass.user_id.startsWith('user-') ? '00000000-0000-0000-0000-00000000000' + pass.user_id.replace('user-', '') : pass.user_id,
+          issuing_country: pass.issuing_country,
+          passport_number: pass.passport_number,
+          issue_date: pass.issue_date,
+          expiry_date: pass.expiry_date,
+          notes: pass.notes,
+        });
+        count++;
+      }
+
+      // 3. Sync Visas
+      const visas = getLocalStore<VisaReminder[]>('visas', DEFAULT_VISAS);
+      for (const v of visas) {
+        await supabase.from('visa_reminders').upsert({
+          user_id: v.user_id.startsWith('user-') ? '00000000-0000-0000-0000-00000000000' + v.user_id.replace('user-', '') : v.user_id,
+          country: v.country,
+          visa_type: v.visa_type,
+          issue_date: v.issue_date,
+          expiry_date: v.expiry_date,
+          status: v.status,
+          notes: (v.passport_number ? `Passport: ${v.passport_number}. ` : '') + (v.notes || ''),
+        });
+        count++;
+      }
+
+      return { success: true, count };
+    } catch (err: any) {
+      console.error('Supabase sync failed:', err);
+      return { success: false, count, error: err.message || 'Sync failed.' };
+    }
   }
 };
+

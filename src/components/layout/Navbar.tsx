@@ -1,6 +1,6 @@
 import React from 'react';
 import { useAuth } from '../../lib/authContext';
-import { LogOut, Compass, ShieldCheck } from 'lucide-react';
+import { LogOut, Compass, ShieldCheck, Mail } from 'lucide-react';
 import { TelegramIcon } from '../common/TelegramAssistantModal';
 
 interface NavbarProps {
@@ -8,13 +8,15 @@ interface NavbarProps {
   onNavigate: (path: string) => void;
   onOpenSupabaseModal?: () => void;
   onOpenTelegramModal?: () => void;
+  onOpenSmtpModal?: () => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({ 
   currentPath, 
   onNavigate, 
   onOpenSupabaseModal,
-  onOpenTelegramModal 
+  onOpenTelegramModal,
+  onOpenSmtpModal 
 }) => {
   const { user, isAdmin, logout } = useAuth();
 
@@ -95,10 +97,22 @@ export const Navbar: React.FC<NavbarProps> = ({
 
         {/* Zone 3: 1 Primary Action & Profile Info */}
         <div className="flex items-center gap-2.5 shrink-0">
+          {onOpenSmtpModal && (
+            <button
+              onClick={onOpenSmtpModal}
+              title="Automated 30/20/15-Day SMTP Email Alerts"
+              className="p-2 rounded-xl border border-[#EAE5DF] bg-white text-[#111111] hover:bg-[#F7F1E9] transition-colors cursor-pointer flex items-center gap-1.5 shadow-2xs group"
+              aria-label="SMTP Expiry Reminders"
+            >
+              <Mail className="w-4 h-4 text-[#111111] transition-transform group-hover:scale-110" />
+              <span className="hidden lg:inline text-xs font-semibold text-[#111111]">SMTP Alerts</span>
+            </button>
+          )}
+
           {onOpenTelegramModal && (
             <button
               onClick={onOpenTelegramModal}
-              title="Telegram Auto-Assistant Bot (@ViaggioVisaBot)"
+              title="Telegram Concierge Bot (@VisaAI_Bot)"
               className="p-2 rounded-xl border border-[#EAE5DF] bg-white text-[#0088cc] hover:bg-[#0088cc]/10 hover:border-[#0088cc]/40 transition-colors cursor-pointer flex items-center gap-1.5 shadow-2xs group"
               aria-label="Telegram Bot Auto-Assistant"
             >

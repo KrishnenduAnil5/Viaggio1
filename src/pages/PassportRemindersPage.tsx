@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '../lib/authContext';
 import { DataService, calculateDaysRemaining, maskPassportNumber } from '../lib/storage';
-import { PassportDetail } from '../types';
+import { PassportDetail, VisaReminder } from '../types';
 import { 
   FileText, 
   Plus, 
@@ -13,14 +13,18 @@ import {
   X, 
   Eye, 
   EyeOff, 
-  Lock 
+  Lock,
+  Mail
 } from 'lucide-react';
+import { SmtpRemindersModal } from '../components/common/SmtpRemindersModal';
 
 export const PassportRemindersPage: React.FC = () => {
   const { user } = useAuth();
   const [passports, setPassports] = useState<PassportDetail[]>([]);
+  const [visas, setVisas] = useState<VisaReminder[]>([]);
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isSmtpModalOpen, setIsSmtpModalOpen] = useState(false);
   const [editingPassport, setEditingPassport] = useState<PassportDetail | null>(null);
   const [revealedIds, setRevealedIds] = useState<Record<string, boolean>>({});
 
@@ -37,8 +41,12 @@ export const PassportRemindersPage: React.FC = () => {
     if (!user) return;
     setLoading(true);
     try {
-      const data = await DataService.getPassportDetails(user.id);
-      setPassports(data);
+      const [passData, visaData] = await Promise.all([
+        DataService.getPassportDetails(user.id),
+        DataService.getVisaReminders(user.id),
+      ]);
+      setPassports(passData);
+      setVisas(visaData);
     } catch (err) {
       console.error(err);
     } finally {
@@ -278,6 +286,34 @@ export const PassportRemindersPage: React.FC = () => {
                     </div>
                   </div>
 
+                  {/* Assigned Visas Badge */}
+                  {(() => {
+                    const assignedVisas = visas.filter(
+                      v => (v.passport_number || '').trim().toLowerCase() === p.passport_number.trim().toLowerCase()
+                    );
+                    return (
+                      <div className="mt-3 p-2.5 rounded-xl bg-[#F7F1E9]/60 border border-[#EAE5DF]">
+                        <div className="flex items-center justify-between text-xs font-semibold mb-1">
+                          <span className="text-[#111111]">Assigned Visas</span>
+                          <span className="text-[11px] px-2 py-0.5 rounded-full bg-white font-mono font-bold text-[#111111] border border-[#EAE5DF]">
+                            {assignedVisas.length} linked
+                          </span>
+                        </div>
+                        {assignedVisas.length > 0 ? (
+                          <div className="flex flex-wrap gap-1 mt-1">
+                            {assignedVisas.map(v => (
+                              <span key={v.id} className="text-[10px] px-2 py-0.5 rounded-md bg-white border border-[#EAE5DF] font-semibold text-[#111111]">
+                                {v.country}
+                              </span>
+                            ))}
+                          </div>
+                        ) : (
+                          <p className="text-[10px] text-[#77716B]">No visas linked to this passport yet.</p>
+                        )}
+                      </div>
+                    );
+                  })()}
+
                   {p.notes && (
                     <p className="text-xs text-[#77716B] mt-3 italic line-clamp-2">
                       "{p.notes}"
@@ -285,14 +321,24 @@ export const PassportRemindersPage: React.FC = () => {
                   )}
                 </div>
 
-                <div className="mt-4 pt-3 border-t border-[#EAE5DF]/70 text-[11px] text-[#77716B]">
-                  <span>Reminder intervals: {p.reminder_intervals.join(', ')} days</span>
+                <div className="mt-4 pt-3 border-t border-[#EAE5DF]/70 text-[11px] text-[#77716B] flex items-center justify-between">
+                  <span>Reminders: {p.reminder_intervals.join(', ')} days</span>
+                  {days <= 90 && (
+                    <span className="text-red-700 font-bold">Auto-SMTP Active (&lt;90d)</span>
+                  )}
                 </div>
               </div>
             );
           })}
         </div>
       )}
+
+      {/* SmtpRemindersModal */}
+      <SmtpRemindersModal
+        isOpen={isSmtpModalOpen}
+        onClose={() => setIsSmtpModalOpen(false)}
+        onReminderSent={() => loadPassports()}
+      />
 
       {/* Modal Dialog */}
       {isModalOpen && (

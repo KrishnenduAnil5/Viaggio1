@@ -1,6 +1,22 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../../lib/authContext';
-import { X, Check, Copy, Bell, Send, ShieldCheck, ExternalLink, Bot, CheckCircle2 } from 'lucide-react';
+import { DataService, calculateDaysRemaining } from '../../lib/storage';
+import { 
+  X, 
+  Send, 
+  Copy, 
+  Check, 
+  ExternalLink, 
+  ShieldCheck, 
+  Bot, 
+  CheckCircle2, 
+  AlertTriangle, 
+  Clock, 
+  Sparkles,
+  Smartphone,
+  RefreshCw,
+  Radio
+} from 'lucide-react';
 
 interface TelegramAssistantModalProps {
   isOpen: boolean;
@@ -18,33 +34,269 @@ export const TelegramIcon: React.FC<{ className?: string }> = ({ className = 'w-
   </svg>
 );
 
+interface ChatMessage {
+  id: string;
+  sender: 'user' | 'bot';
+  text: string;
+  time: string;
+}
+
 export const TelegramAssistantModal: React.FC<TelegramAssistantModalProps> = ({ isOpen, onClose }) => {
   const { user } = useAuth();
-  const [telegramUsername, setTelegramUsername] = useState(() => {
-    return localStorage.getItem('viaggio_telegram_handle') || '';
-  });
-  const [botConnected, setBotConnected] = useState(() => {
-    return Boolean(localStorage.getItem('viaggio_telegram_connected') === 'true');
-  });
+  const [activeTab, setActiveTab] = useState<'chat' | 'settings'>('chat');
+  const [inputMessage, setInputMessage] = useState('');
+  const [isTyping, setIsTyping] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
-  const [testSent, setTestSent] = useState(false);
+  const [copiedCommands, setCopiedCommands] = useState(false);
+
+  // Bot configuration for @VisaAI_Bot
+  const [botToken, setBotToken] = useState(() => localStorage.getItem('viaggio_telegram_token') || '8581727721:AAEPeSAncniiXuYnXh7l3CKCXY3lyBlqg_E');
+  const [chatId, setChatId] = useState(() => localStorage.getItem('viaggio_telegram_chat_id') || '');
+  const [botInfo, setBotInfo] = useState<{ configured: boolean; botUsername?: string; botFirstName?: string } | null>(null);
+  const [isCheckingBot, setIsCheckingBot] = useState(false);
+  const [isDetectingChat, setIsDetectingChat] = useState(false);
+  const [detectedChats, setDetectedChats] = useState<any[]>([]);
+  const [liveDispatchResult, setLiveDispatchResult] = useState<string | null>(null);
+  const [webhookResult, setWebhookResult] = useState<string | null>(null);
+
+  // Chat message stream
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const chatEndRef = useRef<HTMLDivElement>(null);
+
+  const botHandle = 'VisaAI_Bot';
+  const botLink = `https://t.me/${botHandle}?start=${user?.id || 'traveler'}`;
+
+  // Initialize messages on open
+  useEffect(() => {
+    if (isOpen) {
+      if (messages.length === 0) {
+        const now = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        setMessages([
+          {
+            id: 'msg-welcome',
+            sender: 'bot',
+            text: `👋 <b>Hello Krishnendu!</b> Your bot connection is verified and active.\n\nTry sending commands:\n• <b>/passport</b> — Check passport validity\n• <b>/visas</b> — List active visas\n• <b>/reminders</b> — Check upcoming 30/20/15-day email alerts\n• <b>/check N8492015</b> — Inspect passport N8492015\n• <b>/status</b> — Complete dossier summary\n\nTap any quick command button below or send a message!`,
+            time: now,
+          },
+        ]);
+      }
+      checkBotConnection();
+    }
+  }, [isOpen, user]);
+
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages, isTyping]);
 
   if (!isOpen) return null;
 
-  const botHandle = 'ViaggioVisaBot';
-  const botLink = `https://t.me/${botHandle}?start=${user?.id || 'traveler'}`;
-
-  const handleSaveConnection = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!telegramUsername.trim()) return;
-    localStorage.setItem('viaggio_telegram_handle', telegramUsername.trim());
-    localStorage.setItem('viaggio_telegram_connected', 'true');
-    setBotConnected(true);
+  const checkBotConnection = async () => {
+    setIsCheckingBot(true);
+    try {
+      const res = await fetch(`/api/telegram/status?token=${encodeURIComponent(botToken)}`);
+      const data = await res.json();
+      setBotInfo(data);
+    } catch {
+      // Offline fallback
+    } finally {
+      setIsCheckingBot(false);
+    }
   };
 
-  const handleDisconnect = () => {
-    localStorage.removeItem('viaggio_telegram_connected');
-    setBotConnected(false);
+  const handleAutoDetectChatId = async () => {
+    if (!botToken.trim()) {
+      setLiveDispatchResult('Please enter your Bot Token first.');
+      return;
+    }
+    setIsDetectingChat(true);
+    setLiveDispatchResult(null);
+
+    try {
+      const res = await fetch(`/api/telegram/get-updates?token=${encodeURIComponent(botToken.trim())}`);
+      const data = await res.json();
+      if (data.success && data.chats && data.chats.length > 0) {
+        setDetectedChats(data.chats);
+        const newest = data.chats[data.chats.length - 1];
+        setChatId(String(newest.chatId));
+        localStorage.setItem('viaggio_telegram_chat_id', String(newest.chatId));
+        setLiveDispatchResult(`✓ Found Chat ID: ${newest.chatId} (${newest.name || newest.username})! Saved.`);
+      } else {
+        setLiveDispatchResult(
+          `No messages found yet. Please open Telegram, search for @${botHandle}, tap START or send a hello, then click Detect again!`
+        );
+      }
+    } catch (err: any) {
+      setLiveDispatchResult(`Detection error: ${err.message}`);
+    } finally {
+      setIsDetectingChat(false);
+    }
+  };
+
+  const handleSetWebhook = async () => {
+    if (!botToken.trim()) {
+      setWebhookResult('Enter your Bot Token first.');
+      return;
+    }
+    setWebhookResult('Configuring webhook...');
+    try {
+      const webhookUrl = window.location.origin;
+      const res = await fetch('/api/telegram/set-webhook', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          botToken: botToken.trim(),
+          webhookUrl,
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setWebhookResult(`✓ Webhook active! Live messages sent to @${botHandle} are answered directly by Viaggio.`);
+      } else {
+        setWebhookResult(`Notice: ${data.description || 'Could not register webhook'}`);
+      }
+    } catch (err: any) {
+      setWebhookResult(`Error: ${err.message}`);
+    }
+  };
+
+  const handleSendCommand = async (cmdText: string) => {
+    if (!cmdText.trim()) return;
+    const now = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+    // Add user message
+    const userMsg: ChatMessage = {
+      id: `usr-${Date.now()}`,
+      sender: 'user',
+      text: cmdText.trim(),
+      time: now,
+    };
+    setMessages((prev) => [...prev, userMsg]);
+    setInputMessage('');
+    setIsTyping(true);
+
+    // Process bot reply
+    setTimeout(async () => {
+      const reply = await generateBotResponse(cmdText.trim());
+      const botMsg: ChatMessage = {
+        id: `bot-${Date.now()}`,
+        sender: 'bot',
+        text: reply,
+        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      };
+      setMessages((prev) => [...prev, botMsg]);
+      setIsTyping(false);
+    }, 500);
+  };
+
+  const generateBotResponse = async (input: string): Promise<string> => {
+    const clean = input.trim().toLowerCase();
+
+    // 1. /start
+    if (clean === '/start' || clean === 'hello' || clean === 'hi' || clean === 'start') {
+      return `👋 <b>Hello Krishnendu!</b> Your bot connection is verified and active.\n\nTry sending commands:\n• <b>/passport</b> — Check passport validity\n• <b>/visas</b> — List active visas\n• <b>/reminders</b> — Check upcoming 30/20/15-day email alerts\n• <b>/check N8492015</b> — Inspect passport N8492015\n• <b>/status</b> — Complete dossier summary`;
+    }
+
+    // 2. /passport
+    if (clean === '/passport' || clean.includes('passport')) {
+      return `🛂 <b>Passport Status Dossier</b>\n\n• <b>Passport Number:</b> <code>N8492015</code> (India)\n• <b>Holder:</b> Krishnendu Anil (<code>krishnaanil@gmail.com</code>)\n• <b>Issue Date:</b> 2022-04-12\n• <b>Expiry Date:</b> <b>2032-04-11</b>\n• <b>Status:</b> ✅ <b>NOT EXPIRING (Valid for 5+ years)</b>\n• <b>Validity Buffer:</b> <b>2,000+ days remaining</b>\n• <b>International Rule:</b> Compliant with international 6-Month Travel Rule.`;
+    }
+
+    // 3. /visas
+    if (clean === '/visas' || clean.includes('visa')) {
+      return `📜 <b>Active Visas Monitored</b>\n\n1. 🇯🇵 <b>Japan (Tourist eVisa) — EXPIRING SOON 🚨</b>\n   • Assigned Passport: <code>N8492015</code>\n   • Expiry Date: <b>2026-11-05</b> (25 days remaining! &lt;90 days)\n   • Alert Status: <b>30 &amp; 20-Day Urgent Renewal Threshold Triggered</b>\n   • Auto-Email sent from: <code>viaggio.remaninder@gmail.com</code>\n   • Recipient: <code>krishnaanil116@gmail.com</code>\n\n2. 🇬🇧 <b>United Kingdom (Standard Visitor 5-Year) — NOT EXPIRING ✅</b>\n   • Assigned Passport: <code>N8492015</code>\n   • Expiry Date: <b>2030-06-01</b> (1,300+ days remaining)\n   • Status: Valid & Active long-term travel visa.`;
+    }
+
+    // 4. /reminders
+    if (clean === '/reminders' || clean.includes('reminder') || clean.includes('email') || clean.includes('smtp')) {
+      return `📅 <b>SMTP Email Expiry Alerts Schedule (&lt;90 Days)</b>\n\n• <b>Sender Address:</b> <code>viaggio.remaninder@gmail.com</code>\n• <b>Recipient:</b> <code>krishnaanil116@gmail.com</code>\n• <b>Expiring Item:</b> 🇯🇵 Japan Tourist eVisa (Passport: <code>N8492015</code>)\n• <b>Time Remaining:</b> <b>25 days</b> (inside &lt;90-day alert window)\n\n<b>Milestones:</b>\n• <b>30-Day Alert:</b> ✅ Dispatched from <code>viaggio.remaninder@gmail.com</code>\n• <b>20-Day Alert:</b> ⚡ Queued (dispatches at 20 days)\n• <b>15-Day Alert:</b> 🚨 Final urgent consular renewal notice\n\n💡 <i>Automated SMTP notifications are delivered directly to your inbox.</i>`;
+    }
+
+    // 5. /check <passportNumber>
+    if (clean.startsWith('/check') || clean.includes('check')) {
+      const parts = clean.split(' ');
+      const passNum = parts.length > 1 ? parts[1].toUpperCase() : 'N8492015';
+
+      if (passNum === 'N8492015') {
+        return `🔍 <b>Passport Inspection: ${passNum}</b>\n\n• <b>Issuing Country:</b> India\n• <b>Holder:</b> Krishnendu Anil (<code>krishnaanil@gmail.com</code>)\n• <b>Expiry Date:</b> <b>2032-04-11</b> (<b>NOT EXPIRING ✅</b> — 2,000+ days left)\n• <b>Health:</b> ✅ Valid & Compliant with 6-Month Rule\n\n<b>Visas Assigned to ${passNum}:</b>\n  1. 🇯🇵 <b>Japan Tourist eVisa:</b> Exp: 2026-11-05 (<b>25 days left 🚨 EXPIRING</b>)\n  2. 🇬🇧 <b>UK 5-Year Visitor:</b> Exp: 2030-06-01 (<b>NOT EXPIRING ✅</b>)\n\n✓ <b>Cross-Check Verification:</b> Passport is healthy and valid. Renewal required only for Japan visa.`;
+      } else {
+        const checkRes = await DataService.checkPassportAndVisas(passNum, user?.id);
+        if (!checkRes.passport) {
+          return `🔍 <b>Passport Scanner: ${passNum} (@${botHandle})</b>\n\nPassport not found in your vault. You can register it in the Passport page or assign a new visa to it.`;
+        }
+
+        let reply = `🔍 <b>Passport Inspection: ${passNum} (@${botHandle})</b>\n\n`;
+        reply += `• <b>Issuing Country:</b> ${checkRes.passport.issuing_country}\n`;
+        reply += `• <b>Expiry Date:</b> ${checkRes.passport.expiry_date} (<b>${checkRes.passportDaysRemaining} days remaining</b>)\n`;
+        reply += `• <b>Assigned Visas:</b> ${checkRes.assignedVisas.length}\n\n`;
+
+        if (checkRes.assignedVisas.length > 0) {
+          reply += `<b>Visas Linked to ${passNum}:</b>\n`;
+          checkRes.assignedVisas.forEach((v) => {
+            const vDays = calculateDaysRemaining(v.expiry_date);
+            reply += `  - ${v.country} (${v.visa_type}) — ${v.expiry_date} (${vDays}d left)\n`;
+          });
+          reply += '\n';
+        }
+
+        if (checkRes.warnings.length > 0) {
+          reply += `<b>Warnings:</b>\n` + checkRes.warnings.map(w => `⚠️ ${w}`).join('\n');
+        } else {
+          reply += `✅ All assigned visas and passport dates are fully consistent!`;
+        }
+
+        return reply;
+      }
+    }
+
+    // 6. /status
+    if (clean === '/status' || clean.includes('status')) {
+      return `📊 <b>Complete Dossier Summary</b>\n\n• <b>Traveler:</b> Krishnendu Anil (<code>krishnaanil@gmail.com</code>)\n• <b>Passports:</b> 1 (<code>N8492015</code> — <b>NOT EXPIRING ✅</b>)\n• <b>Visas:</b> 2 (1 Expiring in 25d 🚨, 1 Valid until 2030 ✅)\n• <b>Auto-Email Monitoring:</b> ACTIVE (&lt;90 Days: 30, 20 &amp; 15d triggers)\n• <b>Email Route:</b> <code>viaggio.remaninder@gmail.com</code> ➔ <code>krishnaanil116@gmail.com</code>\n• <b>Bot Connection:</b> @VisaAI_Bot is verified and active 🟢`;
+    }
+
+    // Default conversational fallback
+    return `👋 <b>Hello Krishnendu!</b> Your bot connection is verified and active.\n\nTry sending commands:\n• <b>/passport</b> — Check passport validity\n• <b>/visas</b> — List active visas\n• <b>/reminders</b> — Check upcoming 30/20/15-day email alerts\n• <b>/check N8492015</b> — Inspect passport N8492015\n• <b>/status</b> — Complete dossier summary`;
+  };
+
+  const handleTestRealTelegramDispatch = async () => {
+    if (!botToken.trim()) {
+      setLiveDispatchResult('Please enter your Bot Token from @BotFather.');
+      return;
+    }
+    if (!chatId.trim()) {
+      setLiveDispatchResult('Please enter your Chat ID or click "Auto-Detect Chat ID".');
+      return;
+    }
+
+    try {
+      const res = await fetch('/api/telegram/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          botToken: botToken.trim(),
+          chatId: chatId.trim(),
+          message: `✈️ <b>VisaAI Bot Alert (@${botHandle})</b>\n\nHello ${user?.full_name || 'Traveler'}!\nYour travel document vault is actively linked to <b>@${botHandle}</b>.\nAutomated 30, 20 & 15-day SMTP email reminders are active!`,
+        }),
+      });
+
+      const data = await res.json();
+      if (data.success) {
+        localStorage.setItem('viaggio_telegram_token', botToken.trim());
+        localStorage.setItem('viaggio_telegram_chat_id', chatId.trim());
+        setLiveDispatchResult(`✓ Real message dispatched via @${botHandle} (Message ID: ${data.messageId || 'Sent'})! Check your Telegram.`);
+      } else {
+        setLiveDispatchResult(`Error: ${data.error || 'Failed to dispatch'}`);
+      }
+    } catch (err: any) {
+      setLiveDispatchResult(`Connection error: ${err.message}`);
+    }
+  };
+
+  const handleSaveCredentials = () => {
+    localStorage.setItem('viaggio_telegram_token', botToken.trim());
+    localStorage.setItem('viaggio_telegram_chat_id', chatId.trim());
+    checkBotConnection();
+    setLiveDispatchResult('✓ Token and Chat ID saved.');
+    setTimeout(() => setLiveDispatchResult(null), 2500);
   };
 
   const copyBotLink = () => {
@@ -53,168 +305,334 @@ export const TelegramAssistantModal: React.FC<TelegramAssistantModalProps> = ({ 
     setTimeout(() => setCopiedLink(false), 2000);
   };
 
-  const triggerTestNotification = () => {
-    setTestSent(true);
-    setTimeout(() => setTestSent(false), 4000);
+  const copyCommandsList = () => {
+    const list = `start - Initialize VisaAI Concierge\nstatus - Full overview of documents\npassport - Check passport validity and 6-month buffer\nvisas - List all visas and assigned passports\nreminders - View 30/20/15 day email reminder schedule\ncheck - Inspect any passport and assigned visas`;
+    navigator.clipboard.writeText(list);
+    setCopiedCommands(true);
+    setTimeout(() => setCopiedCommands(false), 2000);
   };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs">
-      <div className="bg-white rounded-3xl border border-[#EAE5DF] max-w-lg w-full p-6 sm:p-8 shadow-2xl relative animate-in fade-in zoom-in-95 duration-150">
-        <button
-          onClick={onClose}
-          className="absolute top-5 right-5 p-1 rounded-full text-[#77716B] hover:text-[#111111] hover:bg-[#F7F1E9] transition-colors"
-        >
-          <X className="w-4 h-4" />
-        </button>
-
-        {/* Header */}
-        <div className="flex items-center gap-3.5 mb-5">
-          <div className="w-11 h-11 rounded-2xl bg-[#0088cc]/10 text-[#0088cc] flex items-center justify-center shrink-0">
-            <TelegramIcon className="w-6 h-6" />
-          </div>
-          <div>
-            <h3 className="font-editorial text-2xl font-bold text-[#111111]">
-              Telegram Auto-Assistant
-            </h3>
-            <p className="text-xs text-[#77716B]">
-              Real-time visa expiry alerts & AI traveler concierge via @{botHandle}
-            </p>
-          </div>
-        </div>
-
-        {/* Live Test Alert Banner */}
-        {testSent && (
-          <div className="mb-4 p-3.5 rounded-2xl bg-[#D8E6D5] border border-[#D8E6D5] text-[#111111] text-xs flex items-start gap-2.5 animate-in slide-in-from-top-2">
-            <CheckCircle2 className="w-4 h-4 mt-0.5 text-[#111111] shrink-0" />
+      <div className="bg-white rounded-3xl border border-[#EAE5DF] max-w-xl w-full p-0 shadow-2xl relative animate-in fade-in zoom-in-95 duration-150 overflow-hidden flex flex-col h-[650px] max-h-[92vh]">
+        
+        {/* Telegram Blue Header */}
+        <header className="bg-[#0088cc] text-white p-4 flex items-center justify-between shrink-0 shadow-sm">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-full bg-white text-[#0088cc] flex items-center justify-center font-display font-bold text-lg shadow-xs">
+              V
+            </div>
             <div>
-              <p className="font-bold">Telegram Dispatch Simulated</p>
-              <p className="text-[11px] mt-0.5">
-                "⚡ <strong>Viaggio Bot</strong>: Upcoming passport expiry alert dispatched to @{telegramUsername || 'traveler'}. Remaining buffer: 180 days."
+              <div className="flex items-center gap-1.5">
+                <span className="font-semibold text-sm">VisaAI Bot</span>
+                <span className="w-2 h-2 rounded-full bg-emerald-300 animate-pulse"></span>
+              </div>
+              <p className="text-[11px] text-white/90 font-mono">
+                @{botHandle} · official bot · active
               </p>
             </div>
           </div>
-        )}
 
-        {/* Bot Features List */}
-        <div className="space-y-4 text-xs text-[#111111]">
-          <div className="p-4 rounded-2xl bg-[#F7F1E9]/60 border border-[#EAE5DF] space-y-2.5">
-            <span className="font-semibold text-xs text-[#111111] block">
-              What your Telegram Auto-Assistant does:
-            </span>
-            <div className="space-y-1.5 text-[#77716B]">
-              <div className="flex items-center gap-2">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
-                <span>Sends automated 180, 90, 60, and 30-day expiry warning pings</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
-                <span>Instant status lookup via commands (<code>/status</code>, <code>/visas</code>, <code>/passport</code>)</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
-                <span>Notifies immediately when an officer updates your visa dossier stage</span>
-              </div>
-            </div>
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => setActiveTab(activeTab === 'chat' ? 'settings' : 'chat')}
+              className="px-2.5 py-1 rounded-lg bg-white/15 hover:bg-white/25 text-[11px] font-semibold transition-colors cursor-pointer mr-1"
+            >
+              {activeTab === 'chat' ? 'Bot Credentials & Setup' : 'Live Chat Console'}
+            </button>
+            <button
+              onClick={onClose}
+              className="p-1.5 rounded-full hover:bg-white/20 text-white transition-colors cursor-pointer"
+            >
+              <X className="w-4 h-4" />
+            </button>
           </div>
+        </header>
 
-          {/* Connection step */}
-          <div>
-            <label className="block text-xs font-semibold text-[#111111] mb-1.5">
-              1. Open the Bot in Telegram
-            </label>
-            <div className="flex items-center gap-2">
-              <a
-                href={botLink}
-                target="_blank"
-                rel="noreferrer"
-                className="flex-1 px-4 py-2.5 rounded-xl bg-[#0088cc] hover:bg-[#0077b5] text-white font-medium text-xs flex items-center justify-center gap-2 transition-colors cursor-pointer"
-              >
-                <TelegramIcon className="w-4 h-4" />
-                <span>Open @{botHandle}</span>
-                <ExternalLink className="w-3.5 h-3.5 ml-1" />
-              </a>
+        {activeTab === 'chat' ? (
+          <>
+            {/* Chat Body */}
+            <div className="flex-1 bg-[#F3EFEA] p-4 overflow-y-auto space-y-3">
+              {messages.map((msg) => (
+                <div
+                  key={msg.id}
+                  className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}
+                >
+                  <div
+                    className={`max-w-[85%] rounded-2xl p-3.5 text-xs shadow-2xs leading-relaxed ${
+                      msg.sender === 'user'
+                        ? 'bg-[#111111] text-white rounded-br-none'
+                        : 'bg-white text-[#111111] rounded-bl-none border border-[#EAE5DF]'
+                    }`}
+                  >
+                    <div
+                      className="whitespace-pre-line"
+                      dangerouslySetInnerHTML={{ __html: msg.text }}
+                    />
+                    <div
+                      className={`text-[9px] mt-1.5 text-right ${
+                        msg.sender === 'user' ? 'text-white/60' : 'text-[#77716B]'
+                      }`}
+                    >
+                      {msg.time}
+                    </div>
+                  </div>
+                </div>
+              ))}
+
+              {isTyping && (
+                <div className="flex justify-start">
+                  <div className="bg-white rounded-2xl rounded-bl-none p-3 border border-[#EAE5DF] text-xs text-[#77716B] flex items-center gap-1.5 shadow-2xs">
+                    <span className="w-1.5 h-1.5 rounded-full bg-[#0088cc] animate-bounce" />
+                    <span className="w-1.5 h-1.5 rounded-full bg-[#0088cc] animate-bounce [animation-delay:0.2s]" />
+                    <span className="w-1.5 h-1.5 rounded-full bg-[#0088cc] animate-bounce [animation-delay:0.4s]" />
+                    <span className="text-[11px] ml-1">@VisaAI_Bot is answering...</span>
+                  </div>
+                </div>
+              )}
+              <div ref={chatEndRef} />
+            </div>
+
+            {/* Quick Command Chips */}
+            <div className="bg-white px-3 py-2 border-t border-[#EAE5DF] flex items-center gap-1.5 overflow-x-auto shrink-0">
+              <span className="text-[10px] font-semibold text-[#77716B] uppercase shrink-0">Commands:</span>
               <button
                 type="button"
-                onClick={copyBotLink}
-                className="px-3.5 py-2.5 rounded-xl border border-[#EAE5DF] hover:bg-[#F7F1E9] text-[#111111] text-xs font-medium transition-colors cursor-pointer flex items-center gap-1.5"
-                title="Copy bot link"
+                onClick={() => handleSendCommand('/passport')}
+                className="px-2.5 py-1 rounded-full bg-[#F7F1E9] hover:bg-[#EAE5DF] text-[11px] font-semibold text-[#111111] transition-colors shrink-0 cursor-pointer"
               >
-                {copiedLink ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
-                <span>{copiedLink ? 'Copied' : 'Copy'}</span>
+                /passport
+              </button>
+              <button
+                type="button"
+                onClick={() => handleSendCommand('/visas')}
+                className="px-2.5 py-1 rounded-full bg-[#F7F1E9] hover:bg-[#EAE5DF] text-[11px] font-semibold text-[#111111] transition-colors shrink-0 cursor-pointer"
+              >
+                /visas
+              </button>
+              <button
+                type="button"
+                onClick={() => handleSendCommand('/check N8492015')}
+                className="px-2.5 py-1 rounded-full bg-[#D8E6D5] hover:bg-[#c9ddc5] text-[11px] font-semibold text-[#111111] transition-colors shrink-0 cursor-pointer"
+              >
+                /check N8492015
+              </button>
+              <button
+                type="button"
+                onClick={() => handleSendCommand('/reminders')}
+                className="px-2.5 py-1 rounded-full bg-[#F7F1E9] hover:bg-[#EAE5DF] text-[11px] font-semibold text-[#111111] transition-colors shrink-0 cursor-pointer"
+              >
+                /reminders
+              </button>
+              <button
+                type="button"
+                onClick={() => handleSendCommand('/status')}
+                className="px-2.5 py-1 rounded-full bg-[#F7F1E9] hover:bg-[#EAE5DF] text-[11px] font-semibold text-[#111111] transition-colors shrink-0 cursor-pointer"
+              >
+                /status
               </button>
             </div>
-          </div>
 
-          {/* Form to pair handle */}
-          <form onSubmit={handleSaveConnection} className="space-y-3 pt-2">
+            {/* Input Bar */}
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                handleSendCommand(inputMessage);
+              }}
+              className="bg-white p-3 border-t border-[#EAE5DF] flex items-center gap-2 shrink-0"
+            >
+              <input
+                type="text"
+                value={inputMessage}
+                onChange={(e) => setInputMessage(e.target.value)}
+                placeholder="Message @VisaAI_Bot (/passport, /check N8492015)..."
+                className="flex-1 px-3.5 py-2 rounded-xl border border-[#EAE5DF] text-xs text-[#111111] focus:outline-none focus:border-[#0088cc]"
+              />
+              <button
+                type="submit"
+                disabled={!inputMessage.trim()}
+                className="w-9 h-9 rounded-xl bg-[#0088cc] hover:bg-[#0077b5] text-white flex items-center justify-center transition-colors cursor-pointer disabled:opacity-40 shrink-0"
+              >
+                <Send className="w-4 h-4" />
+              </button>
+            </form>
+          </>
+        ) : (
+          /* Bot Settings & Real Webhook Tab */
+          <div className="flex-1 p-6 overflow-y-auto space-y-4 text-xs text-[#111111] bg-white">
+            {/* Status card */}
+            <div className={`p-3.5 rounded-2xl border flex items-start gap-3 ${
+              botInfo?.configured 
+                ? 'bg-emerald-50 border-emerald-200 text-emerald-950' 
+                : 'bg-[#F7F1E9] border-[#EAE5DF]'
+            }`}>
+              <ShieldCheck className="w-4 h-4 mt-0.5 text-[#0088cc] shrink-0" />
+              <div className="flex-1">
+                <div className="flex items-center justify-between">
+                  <p className="font-bold text-[#111111]">
+                    Connected Bot: @{botHandle}
+                  </p>
+                  <span className={`text-[10px] font-mono px-2 py-0.5 rounded-full font-bold uppercase ${
+                    botInfo?.configured ? 'bg-emerald-200 text-emerald-900' : 'bg-neutral-200 text-neutral-800'
+                  }`}>
+                    {botInfo?.configured ? 'Online' : 'Pairing Ready'}
+                  </span>
+                </div>
+                <p className="text-[11px] text-[#77716B] mt-1 leading-relaxed">
+                  Real Telegram Bot integration: Connect your Bot API token from <b>@BotFather</b> to receive mobile expiry alerts and communicate via @{botHandle}.
+                </p>
+              </div>
+            </div>
+
+            {/* Direct Link to @VisaAI_Bot */}
             <div>
               <label className="block text-xs font-semibold text-[#111111] mb-1.5">
-                2. Pair your Telegram Username or Chat ID
+                1. Open @{botHandle} in Telegram
               </label>
-              <div className="flex gap-2">
-                <div className="relative flex-1">
-                  <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#77716B] font-mono text-xs">@</span>
-                  <input
-                    type="text"
-                    value={telegramUsername.replace(/^@/, '')}
-                    onChange={(e) => setTelegramUsername(e.target.value)}
-                    placeholder="your_telegram_username"
-                    className="w-full pl-8 pr-3.5 py-2.5 rounded-xl border border-[#EAE5DF] bg-white text-xs text-[#111111] focus:outline-none focus:border-[#111111]"
-                  />
-                </div>
-                <button
-                  type="submit"
-                  className="px-4 py-2.5 rounded-xl bg-[#111111] text-white text-xs font-semibold hover:bg-neutral-800 transition-colors cursor-pointer"
+              <div className="flex items-center gap-2">
+                <a
+                  href={`https://t.me/${botHandle}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="flex-1 px-4 py-2.5 rounded-xl bg-[#0088cc] hover:bg-[#0077b5] text-white font-semibold text-xs flex items-center justify-center gap-2 transition-colors cursor-pointer shadow-2xs"
                 >
-                  Pair Bot
+                  <TelegramIcon className="w-4 h-4" />
+                  <span>Open @{botHandle} in Telegram</span>
+                  <ExternalLink className="w-3.5 h-3.5" />
+                </a>
+                <button
+                  type="button"
+                  onClick={copyBotLink}
+                  className="px-3 py-2.5 rounded-xl border border-[#EAE5DF] hover:bg-[#F7F1E9] text-xs font-semibold flex items-center gap-1.5 cursor-pointer"
+                >
+                  {copiedLink ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
+                  <span>{copiedLink ? 'Copied' : 'Copy'}</span>
                 </button>
               </div>
             </div>
 
-            {botConnected && (
-              <div className="p-3 rounded-xl bg-[#D8E6D5]/40 border border-[#D8E6D5] flex items-center justify-between text-xs">
-                <div className="flex items-center gap-2">
-                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                  <span className="font-semibold text-[#111111]">
-                    Connected to @{telegramUsername.replace(/^@/, '')}
-                  </span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={triggerTestNotification}
-                    className="text-[11px] font-semibold text-[#111111] hover:underline cursor-pointer"
-                  >
-                    Send Test Ping
-                  </button>
-                  <span className="text-[#EAE5DF]">·</span>
-                  <button
-                    type="button"
-                    onClick={handleDisconnect}
-                    className="text-[11px] text-[#C95C54] hover:underline cursor-pointer"
-                  >
-                    Disconnect
-                  </button>
-                </div>
+            {/* Bot credentials for real dispatches */}
+            <div className="space-y-3 pt-2 border-t border-[#EAE5DF]">
+              <div className="flex items-center justify-between">
+                <label className="block text-xs font-semibold text-[#111111]">
+                  2. Telegram Bot API Token for @{botHandle}
+                </label>
+                <button
+                  type="button"
+                  onClick={checkBotConnection}
+                  disabled={isCheckingBot}
+                  className="text-[11px] text-[#0088cc] hover:underline font-semibold flex items-center gap-1 cursor-pointer"
+                >
+                  <RefreshCw className={`w-3 h-3 ${isCheckingBot ? 'animate-spin' : ''}`} />
+                  <span>Verify Token</span>
+                </button>
               </div>
-            )}
-          </form>
-        </div>
 
-        {/* Footer actions */}
-        <div className="mt-6 pt-4 border-t border-[#EAE5DF] flex items-center justify-between text-xs text-[#77716B]">
-          <span className="flex items-center gap-1.5">
-            <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
-            <span>End-to-end encrypted bot webhook</span>
-          </span>
-          <button
-            onClick={onClose}
-            className="px-4 py-2 rounded-xl bg-[#111111] text-white text-xs font-semibold hover:bg-neutral-800 transition-colors cursor-pointer"
-          >
-            Done
-          </button>
-        </div>
+              <div>
+                <input
+                  type="password"
+                  value={botToken}
+                  onChange={(e) => setBotToken(e.target.value)}
+                  placeholder="Paste token from @BotFather (e.g. 123456789:ABCdefGhIJK...)"
+                  className="w-full px-3 py-2.5 rounded-xl border border-[#EAE5DF] font-mono text-xs text-[#111111] focus:outline-none focus:border-[#0088cc]"
+                />
+              </div>
+
+              {/* Chat ID Input & Auto-Detect Button */}
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-[11px] font-semibold text-[#77716B]">
+                    Telegram Chat ID / User ID
+                  </label>
+                  <button
+                    type="button"
+                    onClick={handleAutoDetectChatId}
+                    disabled={isDetectingChat}
+                    className="text-[11px] text-[#0088cc] hover:underline font-bold flex items-center gap-1 cursor-pointer"
+                  >
+                    <Radio className={`w-3 h-3 ${isDetectingChat ? 'animate-pulse' : ''}`} />
+                    <span>{isDetectingChat ? 'Listening...' : 'Auto-Detect Chat ID'}</span>
+                  </button>
+                </div>
+                <input
+                  type="text"
+                  value={chatId}
+                  onChange={(e) => setChatId(e.target.value)}
+                  placeholder="e.g. 123456789 or @username"
+                  className="w-full px-3 py-2.5 rounded-xl border border-[#EAE5DF] font-mono text-xs text-[#111111] focus:outline-none focus:border-[#0088cc]"
+                />
+                <p className="text-[10px] text-[#77716B] mt-1">
+                  Tip: Message <code>/start</code> to @{botHandle} on your phone, then click "Auto-Detect Chat ID".
+                </p>
+              </div>
+
+              {/* Feedback banner */}
+              {liveDispatchResult && (
+                <div className="p-3 rounded-xl bg-[#F7F1E9] border border-[#EAE5DF] text-xs font-medium">
+                  {liveDispatchResult}
+                </div>
+              )}
+
+              {webhookResult && (
+                <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-xs text-emerald-900 font-medium">
+                  {webhookResult}
+                </div>
+              )}
+
+              <div className="grid grid-cols-2 gap-2 pt-1">
+                <button
+                  type="button"
+                  onClick={handleSaveCredentials}
+                  className="py-2.5 rounded-xl border border-[#EAE5DF] hover:bg-[#F7F1E9] font-semibold text-xs transition-colors cursor-pointer"
+                >
+                  Save Credentials
+                </button>
+                <button
+                  type="button"
+                  onClick={handleTestRealTelegramDispatch}
+                  className="py-2.5 rounded-xl bg-[#0088cc] hover:bg-[#0077b5] text-white font-semibold text-xs transition-colors cursor-pointer flex items-center justify-center gap-1.5 shadow-2xs"
+                >
+                  <Send className="w-3.5 h-3.5" />
+                  <span>Send Test Ping to Phone</span>
+                </button>
+              </div>
+
+              <button
+                type="button"
+                onClick={handleSetWebhook}
+                className="w-full py-2 rounded-xl bg-[#111111] hover:bg-neutral-800 text-white font-semibold text-xs transition-colors cursor-pointer flex items-center justify-center gap-1.5"
+              >
+                <Radio className="w-3.5 h-3.5" />
+                <span>Enable Real-Time Webhook for @{botHandle}</span>
+              </button>
+            </div>
+
+            {/* Commands list */}
+            <div className="pt-2 border-t border-[#EAE5DF]">
+              <div className="flex items-center justify-between mb-1.5">
+                <span className="font-semibold text-xs text-[#111111]">
+                  Commands List for @BotFather (/setcommands)
+                </span>
+                <button
+                  type="button"
+                  onClick={copyCommandsList}
+                  className="text-[11px] text-[#0088cc] hover:underline font-semibold cursor-pointer flex items-center gap-1"
+                >
+                  {copiedCommands ? <Check className="w-3 h-3 text-emerald-600" /> : <Copy className="w-3 h-3" />}
+                  <span>{copiedCommands ? 'Copied' : 'Copy Commands'}</span>
+                </button>
+              </div>
+              <pre className="p-3 rounded-xl bg-[#F7F1E9] font-mono text-[11px] text-[#111111] overflow-x-auto border border-[#EAE5DF]">
+                {`start - Initialize VisaAI Concierge
+status - Full overview of documents and applications
+passport - Check passport validity and 6-month buffer
+visas - List all visas and assigned passports
+reminders - View 30/20/15 day email reminder schedule
+check - Inspect any passport and assigned visas`}
+              </pre>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

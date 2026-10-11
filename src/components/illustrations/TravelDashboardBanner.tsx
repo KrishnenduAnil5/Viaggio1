@@ -28,7 +28,7 @@ export const TravelDashboardBanner: React.FC<TravelDashboardBannerProps> = ({
               className="inline-flex items-center gap-1.5 px-3 py-1 rounded-md bg-[#0088cc]/10 hover:bg-[#0088cc]/20 text-[#0088cc] text-xs font-semibold transition-colors cursor-pointer"
             >
               <TelegramIcon className="w-3.5 h-3.5" />
-              <span>Telegram Auto-Assistant: @ViaggioVisaBot</span>
+              <span>Telegram Concierge: @VisaAI_Bot</span>
             </button>
           </div>
 
